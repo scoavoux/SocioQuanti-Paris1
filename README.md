@@ -16,3 +16,7 @@ Cours d'introduction à la sociologie quantitative à destination des doctorants
 7. Analyses statistiques
 8. Produire des graphiques
 9. Écrire des rapports
+
+## Contributions
+
+Certains passages de ce cours sont issus d'enseignements préparés avec Anton Perdoncin ou avec Gabriel Alcaras, et réutilisés avec leur permission.
