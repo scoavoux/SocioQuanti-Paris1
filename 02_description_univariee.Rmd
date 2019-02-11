@@ -1,0 +1,699 @@
+---
+title: "Séance 2 (1): statistique descriptive univariée"
+subtitle: "Introduction à la sociologie quantitative, niveau 1"
+author: "Samuel Coavoux"
+output:
+  beamer_presentation:
+    latex_engine: xelatex
+    toc: true
+    colortheme: beaver
+    highlight: tango
+    theme: Copenhagen
+lang: fr-FR
+fontsize: 10pt
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r chunkoptions,echo=FALSE,warning=FALSE}
+library(knitr)
+
+### Common Knitr options
+opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE,
+               fig.path='./Plot/plot-', fig.width=9, fig.height=6, fig.lp="", 
+               results="asis", comment="")
+options("scipen"=100)
+```
+
+```{r import}
+
+### Common librairies
+library(dplyr)
+library(tidyr)
+library(ggplot2) 
+library(pander) 
+library(questionr)
+library(forcats)
+# install.packages("devtools")
+# devtools::install_github("renkun-ken/formattable")
+library(formattable)
+library(RColorBrewer)
+
+### Pander options 
+### Pander options
+panderOptions('table.split.table', Inf)
+panderOptions('table.split.cells', Inf)
+panderOptions('table.style', 'rmarkdown')
+
+theme_set(theme_bw(base_size = 14))
+```
+
+```{r donnees, cache=TRUE}
+
+### Données
+### American Community Survey : artists -- à télécharger sur ICPSR :
+### http://www.icpsr.umich.edu/icpsrweb/ICPSR/studies/35529?classification=ICPSR.XVII.F.
+load("./data/ICPSR_35529/DS0001/35529-0001-Data.rda")
+d <- da35529.0001
+rm(da35529.0001)
+
+### Netoyage
+dt <- select(d,sexe  = SEX,
+               age   = AGEP,
+               state = ST,
+               income= PINCP,
+               dipl  = SCHL,
+               cit   = CIT,
+               eng   = ENG) %>% 
+  mutate(sexe=sub("\\([12]\\) (.*)","\\1",as.character(sexe)))
+
+```
+
+### Statistique descriptive
+
+> Ensemble des méthodes statistiques synthétisant les données afin de décrire une population.
+
+La statistique descriptive permet donc de passer des données **atomisées** (au niveau de l'individu) aux données **agrégées** (au niveau de la population).
+
+Elle s'oppose à la statistique **inférentielle** qui recherche les liens entre les variables.
+
+### Statistiques descriptives
+
+On peut décrire :
+
++ une seule variable : statistique descriptive univariées (ce cours)
++ deux variables : statistique descriptive bivariée (semaine prochaine)
++ plusieurs variables : statistique descriptive multidimensionnelle
+
+Les méthodes de la statistique descriptive comprennent :
+
++ les tableaux 
++ les diagrammes
++ les paramètres statistiques (valeurs numériques caractéristiques d'une variable quantitative)
+
+# Description d'une variable catégorielle
+
+## Tri à plat
+
+### Tri à plat
+
+Le **tri à plat** permet de décrire la **distribution** d'une variable catégorielle. Il s'agit de produire un tableau regroupant l'**effectif** et la **fréquence** de chacune des modalités d'une telle variable.
+
++ **effectif** : nombre d'observations pour laquelle la variable étudiée prend la modalité en question. ($n_{modalite}$)
++ **fréquence** : proportion de l'effectif d'une modalité par rapport à l'effectif total. ($\frac{n_{modalite}}{N}$)
+
+### Exemple de tri à plat
+
+```{r tri_cit}
+f <- freq(dt$cit,exclude = NA,total=TRUE)
+
+names(f) <- c("Effectifs", "Fréquence")
+
+panderOptions('table.style', 'multiline')
+pander(f, "Distribution de la nationalité/lieu de naissance des artistes américains",table.style="multiline")
+panderOptions('table.style', 'rmarkdown')
+```
+
+### Représentation graphique
+
+On représente graphiquement la distribution d'une variable catégorielle par un diagramme en barre ou barplot. Il peut se faire en effectifs ou en fréquence.
+
+### Représentation graphique
+
+```{r tri_barplot}
+mutate(dt, cit = factor(cit, 
+                        levels = c("(1) Born in the U.S.", 
+                                   "(2) Born in Puerto Rico, Guam, the U.S. Virgin Islands, or the Northern Marianas", 
+                                   "(3) Born abroad of American parent(s)", "(4) U.S. citizen by naturalization", 
+                                   "(5) Not a citizen of the U.S."),
+                        labels = c("(1) Born in the U.S.", 
+                                   "(2) Born in Puerto\nRico, etc.", 
+                                   "(3) Born abroad of\nAmerican parent(s)", 
+                                   "(4) U.S. citizen by\nnaturalization", 
+                                   "(5) Not a citizen of\nthe U.S."))) %>% 
+  ggplot(aes(x = cit)) +
+  geom_bar() +
+  labs(x = "Nationalité/Lieu de Naissance", y = "Effectif") +
+  scale_y_continuous(sec.axis =   sec_axis(trans = ~ . / nrow(dt))) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+### Mauvaises représentations graphiques
+
+Une autre manière classique de représenter la distribution d'une variable catégorielle est le diagramme en "camembert" ou pie chart. Je vous conseille de l'éviter.
+
+Un diagramme en barre représente les effectifs ou les fréquences par des *longueurs* ayant la *origine*. Elles sont faciles à comparer.
+
+Un camembert les représente par des *angles* ayant des *origines* différentes. L'œil humain estime mal les angles et compare mal les mesures ayant des origines différentes.
+
+Les logiciels comme excel proposent par défaut des options pour mettre ces deux types de diagrammes (en barre et en camembert) en 3D. La 3D rend plus difficile la comparaison des longueurs et encore plus trompeuse la comparaison des angles. Elle n'a aucune utilité.
+
+### Quelle est la catégorie la plus importante ?
+
+```{r piechart,out.width="0.8\\textwidth"}
+ds <- data_frame(x=factor(letters[1:3]),y=c(0.30,0.32,0.38))
+
+ggplot(ds,aes(x=x,y=y,fill=x)) + 
+geom_bar(stat="identity",width=1,position="fill") + 
+coord_polar() +
+theme_bw() +
+xlab("") +
+ylab("") +
+theme(axis.text.y=element_blank(),
+axis.ticks.y=element_blank())
+```
+
+### Comparer à la slide précédente
+
+```{r barplot}
+ggplot(ds,aes(x=x,y=y,fill=x)) + 
+geom_bar(stat="identity") +
+theme_bw() +
+ylim(0,0.4)
+```
+
+### Usage des couleurs dans les graphiques
+
+Conventionnellement, on utilise:
+
++ un jeu de couleur dégradé si on représente une variable catégorielle ordonnée. Le degradé de couleur renvoie à l'ordre des valeurs représentées. Cela vaut également pour une variable numérique, continue ou discrète.
++ un jeu de couleur contrastée si on représente une variable catégorielle non ordonnée.
+
+Attention à choisir les couleurs en gardant à l'esprit : 
+
++ les différences de perception (privilégier les palettes visibles par des personnes daltoniennes) 
++ les contraintes de publication (privilégier des couleurs se transformant en nuances de gris à l'impression noir et blanc).
+
+Pour des conseils sur l'usage des couleurs et des suggestions de palettes adaptées aux différents usages: http://colorbrewer2.org
+
+### Les artistes américains parlent-ils anglais?
+
+Examinez le tableau suivant. Que peut-on dire de la maîtrise de la langue anglaise par les artistes américains?
+
+```{r english_noNA}
+
+f <- freq(dt$eng,exclude=NA,total=TRUE)
+names(f) <- c("Effectifs", "Fréquence")
+
+pander(f,"How well does [the respondant] speaks english?",justify="right")
+
+```
+
+Pouvez-vous repérer ce qui manque dans ce tableau?
+
+### Les artistes américains parlent-ils anglais?
+
+```{r english_NA}
+
+f <- freq(dt$eng,total=TRUE)
+names(f) <- c("Effectifs", "Fréquence / NA", "Fréquence sans NA")
+
+pander(f,"How well does [the respondant] speaks english?",justify="right")
+
+```
+
+### Examiner les valeurs manquantes
+
+Les tris à plat peuvent être réalisés en incluant ou en excluant les valeurs manquantes de l'effectif total.
+
+L'exclusion des valeurs manquantes est dangereuse car elle peut conduire à croire majoritaire une modalité qui ne l'est pas.
+
+Par ailleurs, les valeurs manquantes ont des sens différents selon que
+
++ il s'agit de l'effet d'un filtre lors du recueil des données : la variable sans objet pour l'observation (exemple : profession du conjoint d'une personne célibataire)
++ il s'agit d'un manque d'information : la variable fait sens pour l'observation en question mais n'est pas renseignée (refus de répondre, absence de l'information dans les archives...)
+
+On doit toujours commencer par étudier les valeurs manquantes; on ne peut les exclure que si elles sont peu nombreuses et si elles sont liées à des filtres du questionnaire. Il faut alors mentionner la base du tableau (la composition de l'échantillon sur lequel porte le tri à plat).
+
+### Fréquences cumulées
+
+Lorsque le tri à plat porte sur une variable catégorielle **ordonnée** (les modalités peuvent être triées dans un ordre logique), le tri à plat peut inclure, outre l'effectif et la fréquence, la **fréquence cumulée**.
+
+La fréquence cumulée d'une modalité est égale à la somme de sa fréquence et des fréquences de toutes les modalités précédentes dans l'ordre logique de classement des modalités.
+
+### Exemple de fréquence cumulée
+
+```{r age_cum}
+
+cut(dt$age,breaks = c(15,25,35,50,65,100),
+    labels=c("15-24 ans", "25-34 ans", "35-49 ans",
+             "50-64 ans", "65 ans et plus")) %>% 
+  freq(cum=TRUE,exclude=NA) %>% 
+  pander(caption="Distribution des âges des artistes américains", justify="right")
+
+```
+
+### Représentation graphique d'une fréquence cumulée
+
+```{r age_sex_cum_barplot}
+mutate(dt, age_br = cut(age,breaks = rev(c(15,25,35,50,65,100)),
+    labels=rev(c("15-24 ans", "25-34 ans", "35-49 ans",
+             "50-64 ans", "65 ans et plus")))) %>% 
+  ggplot(aes(sexe, fill = age_br)) +
+    geom_bar(position = "fill") +
+    scale_fill_manual(values = rev(brewer.pal(5, name = "PuBu"))) +
+    labs(y = "Fréquences", x = "Sexe", fill = "Classe d'âge")
+```
+
+# Description d'une variable numérique
+
+## Représentations graphiques
+
+### Décrire des variables quantitatives
+
+La première chose à faire pour décrire des variables quantitatives est de les *visualiser* par des représentations graphiques. Elles permettent d'appéhender la forme générale de la distribution, d'estimer si celle-ci ressemble à une loi de distribution statistique connue, et de déterminer les meilleurs indicateurs synthétiques pour la résumer.
+
+
+### Représentations graphiques de variables quantitatives
+
+**Diagramme de densité** (density plot). La densité est une fonction qui décrit la probabilité qu'une observation soit comprise dans un intervalle donné. La densité est le principal indice graphique pour reconnaitre une loi de probabilité.
+
+**Histogramme** (histogram). Découpage d'une variable numérique continue ou discrète en classes *d'amplitude égale*.
+
+**Boite à moustache** (boxplot), **violin plot**: représentation de la distribution d'une variable numérique assortie de différents indicateurs de centralité et de dispersion.
+
+### Densité d'une distribution normale
+
+```{r}
+data_frame(x = seq(-4, 4,length=100),
+           norm = dnorm(x, 0, 1)) %>% 
+  ggplot(aes(x, norm)) +
+    geom_line()
+```
+
+### Densité d'une distribution exponentielle
+
+```{r}
+data_frame(x = seq(0, 10,length=100),
+           exp = dexp(x)) %>% 
+  ggplot(aes(x, exp)) +
+    geom_line()
+
+```
+
+### Histogramme
+
+```{r exemple_histogramme}
+ggplot(dt,aes(x=age)) + geom_histogram(binwidth=1) +
+  scale_x_continuous(breaks = seq(0,100,5)) +
+  ylim(0,3000) +
+  theme_bw()
+```
+
+## Indicateurs de tendance centrale
+
+### Indicateurs de tendance centrale
+
+Une fois les premiers diagnostics effectués, on peut calculer deux types d'indicateurs permettant de résumer les variables quantitatives:
+
++ Les **indicateurs de tendance centrale** décrivent le cœur de la distribution. Ils désignent les valeurs autour desquels est concentrée la variable. Il en existe trois, le **mode**, la **moyenne** et la **médiane**.
++ Les **indicateurs de dispersion** décrivent l'étendue de la distribution : la tendance des valeurs à s'étaler autour d'une valeur centrale. On trouve parmi eux la **variance** et l'**écart-type**.
+
+Ces deux ensembles d'indicateurs sont complémentaires. Ils doivent être employés ensemble.
+
+### Le mode
+
+Le mode est la modalité ou la valeur **la plus fréquente** d'une distribution. 
+
+Dans le cas d'une **variable qualitative**, le mode est la modalité qui a **l'effectif le plus élevé**.
+
+Pour une variable quantitative discrète, le mode est la valeur qui a l'effectif le plus élevé.
+
+Pour une variable quantitative continue, le mode n'a aucun sens, car chaque valeur a une grande probabilité d'être unique. Dans ce cas, on ne peut le calculer qu'à condition de découper la variable en classes.
+
+### Mode d'une variable qualitative
+
+```{r mode_quali}
+f <- freq(dt$cit,exclude = NA,total=TRUE)
+
+names(f) <- c("Effectifs", "Fréquence")
+
+panderOptions('table.style', 'multiline')
+pander(f, "Distribution de la nationalité/lieu de naissance des artistes américains",table.style="multiline")
+panderOptions('table.style', 'rmarkdown')
+```
+
+### Mode d'une variable quantitative discrète
+
+```{r mode_quanti}
+ggplot(dt,aes(x=age)) + geom_histogram(binwidth=1) +
+  scale_x_continuous(breaks = seq(0,100,5)) +
+  ylim(0,3000) +
+  theme_bw()
+```
+
+### Mode d'une variable quantitative discrète
+
+```{r mode_quanti_annote}
+
+ggplot(dt,aes(x=age)) + geom_histogram(binwidth=1) +
+  scale_x_continuous(breaks = seq(0,100,5)) +
+  annotate("text",x=31,y=2900,label="Mode: 31 ans") + 
+  ylim(0,3000) +
+  theme_bw() 
+
+```
+
+
+### Mode d'une variable quantitative continue
+
+```{r densite_continu}
+ggplot(dt,aes(x=income)) + 
+  geom_line(stat="density") + 
+  xlim(0,200000) +
+  theme_bw()
+
+
+```
+
+### Mode d'une variable quantitative continue
+
+```{r mode_continu}
+
+ggplot(dt,aes(x=income)) + 
+  geom_histogram(binwidth=5000) + 
+  xlim(0,200000) + 
+  annotate("text",x=0,y=11000,label="Mode: $0-5000",hjust=0) +
+  theme_bw()
+
+```
+
+### Médiane
+
+La **médiane** est la valeur d'une variable telle que la moitié des valeurs lui est supérieure et l'autre moitié inférieure. Elle peut être calculée pour des **variables qualitatives ordonnée** ou pour des **variables quantitatives**.
+
+### Médiane d'une variable ordonnée
+
+Il s'agit de la classe qui contient la valeur séparant les observations ordonnées en deux sous-ensembles de taille égale. Ici, la médiane est la classe des 35-49 ans.
+
+```{r age_quali_mode}
+
+cut(dt$age,breaks = c(15,25,35,50,65,100),
+    labels=c("15-24 ans", "25-34 ans", "35-49 ans",
+             "50-64 ans", "65 ans et plus")) %>% 
+  freq(cum=TRUE,exclude=NA) %>% 
+  pander(caption="Distribution des âges des artistes américains", justify="right")
+
+```
+
+### Médiane d'une variable quantitative
+
+```{r mode quanti}
+
+ggplot(dt,aes(x=age)) + geom_histogram(binwidth=1) +
+  scale_x_continuous(breaks = seq(0,100,5)) +
+  theme_bw() +
+  geom_vline(xintercept=median(dt$age))
+
+
+```
+
+### Calcul d'une médiane
+
+Il suffit de classer les observations par ordre croissant. Si la variable a un nombre d'observations n impair, la médiane est la valeur de rang $\frac{n+1}{2}$.
+
+Si la variable a un nombre d'observations n pair, la médiane est la moyenne des observation de rang $\frac{n}{2}$ et $\frac{n}{2} + 1$
+
+### Médiane d'une variable quantitative au nombre d'observation impair
+
+```{r}
+log <- data.frame(Logement=1:9,Superficie=c(32,24,150,9,90,78,35,50,19))
+row.names(log) <- NULL
+pander(log)
+
+```
+
+### Médiane d'une variable quantitative au nombre d'observation impair
+
+```{r}
+log <- log[order(log$Superficie),]
+row.names(log) <- NULL
+
+pander(log)
+
+```
+
+La médiane est la valeur de rang $\frac{9+1}{2} = 5$, soit 35 m².
+
+### Médiane d'une variable quantitative au nombre d'observation pair
+
+```{r}
+log <- data.frame(Logement=1:8,Superficie=c(32,24,150,9,90,78,35,50))
+row.names(log) <- NULL
+pander(log)
+
+```
+
+### Médiane d'une variable quantitative au nombre d'observation impair
+
+```{r}
+log <- log[order(log$Superficie),]
+row.names(log) <- NULL
+
+pander(log)
+
+```
+
+La médiane est la moyenne des valeurs de rang $\frac{8}{2} = 4$ et $\frac{8}{2} + 1 = 5$, soit $\frac{35+50}{2} = 42.5$ m².
+
+### La moyenne
+
+La moyenne est la somme des valeurs d'une variable divisée par le nombre d'observations. On note $\bar{x}$ la moyenne de la variable $x$ comprenant $n$ observations $X$: 
+
+\begin{center}
+$\bar{x} = \frac{1}{n} * \sum\limits_{i=1}^n X_i$
+\end{center}
+
+Elle ne s'applique qu'aux variables quantitatives.
+
+### Moyenne d'une variable quantitative
+
+```{r}
+row.names(log) <- NULL
+
+pander(log)
+
+```
+
+La moyenne vaut ici $\frac{9+24+32+35+50+78+90+150}{8} = 58.5$ m².
+
+### Propriétés de la moyenne
+
+La somme des écarts des valeurs à la moyenne est nulle. Soit $\bar{x}$ la moyenne d'une variable x de valeur X.
+
+\begin{center}
+$\sum\limits_{i=1}^n (X_i - \bar{x}) = 0$
+\end{center}
+
+La moyenne est très sensible à la présence de valeurs extrêmes.
+
+## Indicateurs de dispersion
+
+### Dispersion statistique
+
+La dispersion statistique d'une distribution correspond à la tendance qu'ont les valeurs d'une variable à s'étaler autour d'une valeur centrale (moyenne, médiane, etc.). Cette tendance est inégale entre les variables.
+
+### Étendue
+
+L'**étendue** d'une variable quantitative est la différence entre sa valeur maximum et sa valeur minimale.
+
+\begin{center}
+Étendue de X = $X_{max} - X_{min}$
+\end{center}
+
+### Quantile
+
+Les **quantiles** sont les valeurs qui séparent les observations ordonnées d'une variable en x sous-ensembles de même effectif. 
+
++ La **médiane** est un quantile particulier qui sépare une distribution en deux sous-ensemble. 
++ Les **quartiles** séparent la distribution en quatre sous-ensemble.
++ les **déciles** en dix sous-ensembles
++ les **centiles** en cent sous-ensembles...
+
+### Quartiles
+
+Les **quartiles** sont donc les trois valeurs qui découpent une distribution en quatre classes d'effectifs égaux.
+
+```{r}
+pander(quantile(dt$age)[2:4],caption="Quartiles de l'âge des artistes américains")
+
+```
+
+
+### Déciles
+
+Les **déciles** sont les neuf valeurs qui découpent une distribution en dix classes d'effectifs égaux.
+
+```{r}
+pander(quantile(dt$age,probs = seq(0,1,0.1))[2:10],caption="Déciles de l'âge des artistes américains")
+
+```
+
+### Intervalle et rapport
+
+Les quantiles permettent de calculer deux types d'indicateurs de dispersion:
+
++ l'**intervalle interquantile** désigne la différence entre la valeur du dernier quantile et la valeur du premier quantile.
++ le **rapport interquantile** désigne le rapport de la valeur du dernier quantile sur la valeur du premier quantile.
+
+### Les inégalités de revenu entre les artistes américains
+
+
+```{r}
+qu <- quantile(dt$income,seq(0,1,.25))
+pander(qu[2:4],"Quartile des revenus des artistes américains")
+
+```
+
+L'**intervalle interquartile** vaut 59400 - 11020 = 48380 dollars. Les 25% d'artistes les mieux payés touchent au moins 48380 dollars **de plus** que les 25% d'artistes les moins biens payés.
+
+### Les inégalités de revenu entre les artistes américains
+
+```{r}
+qu <- quantile(dt$income,seq(0,1,.1))
+pander(qu[2:10],"Décile des revenus des artistes américains")
+
+```
+
+Le **rapport interdécile** vaut $\frac{95000}{2000}$ = `r as.numeric(qu[10]/qu[2])`. Les 10% d'artistes les mieux payés touchent `r as.numeric(qu[10]/qu[2])` **fois plus** que les 10% d'artistes les moins bien payés.
+
+### Variance
+
+La **variance** est égale à **la moyenne des carrés des écarts à la moyenne**. On la note $\sigma^2$. Soit $\sigma_x^2$ la variance de la variable x, comprenant n observations, et $\bar(x)$ sa moyenne.
+
+\begin{center}
+$\sigma_x^2 = \frac{1}{n} * \sum\limits_{i=1}^n (X_i - \bar{x})^2$
+\end{center}
+
+### L'écart-type
+
+L'**écart-type** est **la racine carrée de la moyenne des carrés des écarts à la moyenne**, c'est-à-dire **la racine carrée de la variance**. On le note $\sigma$. Ainsi:
+
+\begin{center}
+$\sigma_x = \sqrt{\frac{1}{n} * \sum\limits_{i=1}^n (X_i - \bar{x})^2} = \sqrt{\sigma_x^2}$
+\end{center}
+
+### Calcul de variance et d'écart type
+
+```{r}
+log$"Valeur - moyenne" <- ""
+log$"Valeur - moyenne" <- log$Superficie - mean(log$Superficie)
+log$"(Valeur - moyenne)²" <- ""
+log$"Valeur - moyenne" <- log$Superficie - mean(log$Superficie)
+log$"(Valeur - moyenne)²" <- log$"Valeur - moyenne" ^ 2
+pander(log)
+
+```
+
+\begin{center}
+
+$\sigma_x^2$ = `r sum(log$"(Valeur - moyenne)²") / nrow(log)`
+
+$\sigma_x = \sqrt{\sigma_x^2}$ = `r round(sqrt(sum(log$"(Valeur - moyenne)²") / nrow(log)), 2)`
+\end{center}
+
+
+
+### Interprétation
+
+Si l'écart-type est sensiblement plus grand que la moyenne, la dispersion est importante.
+
+Si la distribution est approximativement normale, alors:
+
++ 68,3% des valeurs sont comprises dans $X \pm \sigma$
++ 95,5% des valeurs sont comprises dans $X \pm 2\sigma$
++ 99,7% des valeurs sont comprises dans $X \pm 3\sigma$
+
+### Loi normale
+
+```{r}
+ab <- data.frame(x=rnorm(1000000, mean = 0, sd=1))
+
+dens <- data.frame(x = density(ab$x)$x, y = density(ab$x)$y)
+
+ggplot(ab, aes(x)) + 
+  geom_line(stat="density") +
+  geom_ribbon(data = filter(dens, x > mean(ab$x) - sd(ab$x),x < mean(ab$x) + sd(ab$x)), aes(x=x,ymax=y),ymin=0,alpha=1) +
+  geom_ribbon(data = filter(dens, x > mean(ab$x) - 2*sd(ab$x),x < mean(ab$x) + 2*sd(ab$x)), aes(x=x,ymax=y),ymin=0,alpha=0.7) +
+  geom_ribbon(data = filter(dens, x > mean(ab$x) - 3*sd(ab$x),x < mean(ab$x) + 3*sd(ab$x)), aes(x=x,ymax=y),ymin=0,alpha=0.5) +
+  theme_bw()
+```
+
+## Représentations graphiques synthétiques
+
+### Comment représenter graphiquement des statistiques descriptives
+
+Les bonnes représentation graphiques d'une variable numérique font apparaît à la fois la distribution de la variable et des indicateurs résumées. Quoi qu'il en soit, elles ne peuvent remplacer les diagrammes de densité et les histogrammes.
+
+Les boites à moustaches (boxplot) et les violin plot remplissent ce rôle.
+
+Une mauvaise manière de résumer l'information consiste à se contenter de représenter la tendance centrale. Par exemple, il est possible de représenter par un diagramme en barre la moyenne d'une variable numérique, mais on perd alors énormément d'information (en particulier la dispersion de cette variable).
+
+### Boite à moustache
+
+La **boite à moustache** (*box and whisker plot* ou *boxplot*) est un diagramme présentant plusieurs indicateurs de tendance centrale et de dispersion d'une variable quantitative. On y trouve en particulier :
+
++ la **médiane** est un trait gras au milieu de la boite
++ les premiers et troisième **quartiles** délimitent une boite autour de la médiane
++ les **moustaches** (*whiskers*) s'étendent des deux côtés de la boite jusqu'à $1,5 * intervalle inter-quartile$
++ les **valeurs extrêmes** (*outliers*), les valeurs qui ne sont pas comprises à l'intérieur des moustaches, sont représentées par des points
+
+### Revenus des artistes
+
+```{r boxplot}
+set.seed(100)
+ds <- filter(dt, income < 200000) %>% sample_n(500)
+lab <- data.frame(x=1.1,
+                  y=c(0,quantile(ds$income)[2:4],100000,160000),
+                  t=c("moustache","premier quartile","médiane","troisième quartile","moustache","outliers"))
+lab$y <- lab$y +3000
+
+ggplot(data = ds,aes(x=1,y=income)) + 
+  geom_boxplot(varwidth=TRUE) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  ylab("Revenus") +
+  xlab("") +
+  xlim(0,2) +
+  ylim(0,200000)
+
+```
+
+### Revenus des artistes
+
+```{r boxplot_annotated}
+ggplot(data = ds,aes(x=1, y=income)) + 
+  geom_boxplot(varwidth=TRUE) +
+  geom_text(data=lab,aes(x=x,y=y,label=t),hjust=0,vjust=0) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  ylab("Revenus") + 
+  xlab("") +
+  xlim(0,2) +
+  ylim(0,200000)
+
+```
+
+### Violin plot: Revenus des artistes
+
+```{r}
+set.seed(100)
+ds <- filter(dt, income < 200000) %>% sample_n(500)
+lab <- data.frame(x=1.1,
+                  y=c(0,quantile(ds$income)[2:4],100000,160000),
+                  t=c("moustache","premier quartile","médiane","troisième quartile","moustache","outliers"))
+lab$y <- lab$y +3000
+
+ggplot(data = ds,aes(x=1,y=income)) + 
+  geom_violin(draw_quantiles = c(.25, .5, .75)) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  ylab("Revenus") +
+  xlab("") +
+  xlim(0,2) +
+  ylim(0,200000)
+```
+

@@ -1,0 +1,605 @@
+---
+title: "Séance 2 (2): statistique descriptive bivariée"
+subtitle: "Introduction à la sociologie quantitative, niveau 1"
+author: "Samuel Coavoux"
+output:
+  beamer_presentation:
+    latex_engine: xelatex
+    toc: true
+    colortheme: beaver
+    highlight: tango
+    theme: Copenhagen
+lang: fr-FR
+fontsize: 10pt
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r chunkoptions,echo=FALSE,warning=FALSE}
+library(knitr)
+
+### Common Knitr options
+opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE,
+               fig.path='./Plot/plot-', fig.width=9, fig.height=6, fig.lp="", 
+               results="asis", comment="")
+options("scipen"=100)
+```
+
+```{r import}
+
+### Common librairies
+library(dplyr)
+library(tidyr)
+library(ggplot2) 
+library(pander) 
+library(questionr)
+library(forcats)
+# install.packages("devtools")
+# devtools::install_github("renkun-ken/formattable")
+library(formattable)
+library(RColorBrewer)
+
+### Pander options 
+### Pander options
+panderOptions('table.split.table', Inf)
+panderOptions('table.split.cells', Inf)
+panderOptions('table.style', 'rmarkdown')
+
+theme_set(theme_bw(base_size = 14))
+```
+
+```{r donnees, cache=TRUE}
+
+### Données
+### American Community Survey : artists -- à télécharger sur ICPSR :
+### http://www.icpsr.umich.edu/icpsrweb/ICPSR/studies/35529?classification=ICPSR.XVII.F.
+load("./data/ICPSR_35529/DS0001/35529-0001-Data.rda")
+d <- da35529.0001
+rm(da35529.0001)
+
+### Netoyage
+dt <- select(d,sexe  = SEX,
+               age   = AGEP,
+               state = ST,
+               income= PINCP,
+               dipl  = SCHL,
+               cit   = CIT,
+               eng   = ENG) %>% 
+  mutate(sexe=sub("\\([12]\\) (.*)","\\1",as.character(sexe)))
+
+```
+
+# Deux variables catégorielles
+
+### Vous avez dit "bivarié" ?
+
+* On considère **conjointement deux variables X et Y** pour
+  * analyser les valeurs prises par chacune des deux variables
+  * étudier le lien éventuel entre les deux variables (corrélation)
+  
+* Exemples : genre et réussite au baccalauréat ; fréquentation des cinémas et niveau d'études.
+
+Nous allons principalement nous concentrer sur un outil essentiel de la statistique bivariée : le **tableau de contingence**.
+
+## Le tableau de contingence
+
+### Le tableau de contigence
+
+Aussi appelé "tableau croisé" ou "tableau à double entrée".
+
+> Si les statisticiens préfèrent, en toute rigueur, parler de « table de contingence », les sociologues utilisent plus facilement l’expression de « tableau croisé », plus imagée, pour désigner cet outil qui à lui seul incarne, en même temps qu’il la symbolise, toute une façon de faire de la sociologie.
+
+Pierre Mercklé - Les 100 mots de la sociologie
+
+```{r, echo=FALSE}
+library(foreign)
+individus = read.dbf('data/individu.dbf')
+individus$etude = factor(individus$NIVETUD2)
+levels(individus$etude) = c('Aucun', 'Primaire', 'Primaire', '1er cycle', '2e cycle', 'Ens. technique ou prof.', 'Ens. technique ou prof.', 'Enseignement supérieur')
+individus$id = as.numeric(paste0(as.character(individus$IDENT), as.character(individus$NO)))
+
+pratiques = read.dbf('data/kish1.dbf')
+pratiques$uniteT = pratiques$Fsc1
+levels(pratiques$uniteT) = c("365", "1", "30", "7")
+pratiques$uniteT = as.numeric(as.character(pratiques$uniteT))
+pratiques$cinemaFreq = (pratiques$Nsc1 / pratiques$uniteT)*365
+pratiques$cinemaFreqQ = ifelse(pratiques$cinemaFreq < 3, "0-2",
+                               ifelse(pratiques$cinemaFreq < 5, "3-4",
+                                      ifelse(pratiques$cinemaFreq < 12, "5-11", "12+")))
+pratiques$cinemaFreqQ = factor(pratiques$cinemaFreqQ)
+pratiques$id = as.numeric(paste0(as.character(pratiques$IDENT), as.character(pratiques$NO)))
+
+id = intersect(individus$id, pratiques$id)
+ind = individus[individus$id %in% id, c("IDENT", "etude")]
+
+cine = data.frame(etude = rep(0, nrow(ind)))
+etude = ind[order(ind$IDENT), "etude"]
+
+
+cinemaFreqQ <- pratiques[order(pratiques$IDENT), "cinemaFreqQ"]
+cinemaFreq <- pratiques[order(pratiques$IDENT), "cinemaFreq"]
+cinemaFreqQ <- factor(cinemaFreqQ, levels(cinemaFreqQ)[c(1,3,4,2)])
+```
+
+```{r, echo=FALSE}
+cinePlat = table(cinemaFreqQ)
+
+```
+
+
+```{r, echo=FALSE}
+etudePlat = table(etude)
+
+```
+
+### La table de contingence
+
+* Les lignes correspondent aux valeurs (discrètes, classes ou modalités) de la variable X, les colonnes à celles de Y.
+* Chaque case contient l'effectif des individus pour lesquels les deux variables prennent les valeurs correspondant à celles de la ligne et de la colonne.
+
+-----------------------------------
+        $X_1$       $X_2$    $X_3$ 
+------ ----------  -------  -------
+$Y_1$                        
+
+$Y_2$                        
+
+$Y_3$    Eff.
+         $X=X_1$                    
+          et
+         $Y=Y_1$                    
+-----------------------------------
+
+### Notations du cas général
+
+* Variables $X$ ($k$ modalités : $\{x_1,...,x_k\}$), $Y$ ($l$ modalités : $\{y_1,...,y_l\}$) : **« tableau à $l$ lignes et $k$ colonnes »**
+* $n_{i,j}$ : **« nombre d'individus pour lesquels $X = x_j$ ET $Y = y_i$ »** *ou* **« case de la $i$-ième ligne et $j$-ième colonne »**
+
+/| $X = x_1$ | $X = x_2$ | ... | $X = x_j$ | ... | $X = x_k$
+-----------------|-----------|-----------|-----|-----------|-----|----------
+$Y = y_1$ | $n_{1,1}$ | $n_{1,2}$ | ... | $n_{1,j}$ | ... | $n_{1,k}$ 
+$Y = y_2$ | $n_{2,1}$ | $n_{2,2}$ | ... | $n_{2,j}$ | ... | $n_{2,k}$ 
+...       | ... | ... | ... | ... | ... | 
+$Y = y_i$ | $n_{i,1}$ | $n_{i,2}$ | ... | $n_{i,j}$ | ... | $n_{i,k}$
+...       | ... | ... | ... | ... | ... | 
+$Y = y_l$ | $n_{l,1}$ | $n_{l,2}$ | ... | $n_{l,j}$ | ... | $n_{l,k}$
+
+### Exercice de lecture
+
+On s'intéresse aux séries des 331994 personnes ayant passé le baccalauréat général en 2013 (chiffres de l'inscription, et non de réussit). On présente les résultats sous forme d'un tableau croisé.
+
+```{r, echo=FALSE}
+exemple <- data.frame(sexe = factor(rep('Fille', 331994), levels = c('Fille', 'Garçon')),
+                      serie = factor(rep('L', 331994), levels = c('L', 'SES', 'S')))
+exemple$sexe <- c(rep('Fille', 185916), rep('Garçon', 146078))
+exemple$serie <- c(rep('L', 43705), rep('SES', 64721), rep('S', 77460),
+                    rep('L', 11619), rep('SES', 42080), rep('S', 92409)
+                    )
+tableauCroise = table(exemple$serie, exemple$sexe)
+```
+
+```{r, echo=FALSE}
+kable(tableauCroise)
+```
+
+### Effectif total
+
+**La somme des effectifs dans chaque case doit être égale au nombre total d'individus $n$ (effectif total).**
+
+```{r, echo=FALSE}
+kable(tableauCroise)
+```
+
+```{r}
+sum(tableauCroise)
+```
+
+Cas général :
+
+$$\sum_{i = 1}^{l}\sum_{j = 1}^{k} n_{i,j} = n $$
+
+### Marges
+
+Par convention, les **effectifs lignes** sont ajoutés au tableau dans une colonne supplémentaire, et les **effectifs colonnes** dans une ligne supplémentaire.
+
+```{r, echo=FALSE}
+tableauCroiseMarges = addmargins(tableauCroise)
+rownames(tableauCroiseMarges)[4] <- "Ensemble"
+colnames(tableauCroiseMarges)[3] <- "Ensemble"
+kable(tableauCroiseMarges)
+```
+
+### Notation du cas général
+
+/| $X = x_1$ | ... | $X = x_j$ | ... | $X = x_k$ | Ensemble
+-----------------|-----------|-----------|-----|-----------|-----|----
+$Y = y_1$ | $n_{1,1}$ | ... | $n_{1,j}$ | ... | $n_{1,k}$ | $n_{1·}$
+...       | ... | ... | ... | ... | ...
+$Y = y_i$ | $n_{i,1}$ | ... | $n_{i,j}$ | ... | $n_{i,k}$ | $n_{i·}$
+...       | ... | ... | ... | ... | 
+$Y = y_l$ | $n_{l,1}$ | ... | $n_{l,j}$ | ... | $n_{l,k}$ | $n_{l·}$
+Ensemble | $n_{·1}$ | ... | $n_{·j}$ | ... | $n_{·k}$ | $n$
+
+Total de la $i$-ième ligne : $n_{i·} = \sum_{j = 1}^{k} n_{i,j}$
+
+Total de la $j$-ième colonne : $n_{·j} = \sum_{i = 1}^{l} n_{i,j}$
+
+### Propriété des marges : exercice
+
+Rappel du tableau :
+
+```{r, echo=FALSE}
+tableauCroiseMarges2 = tableauCroiseMarges
+tableauCroiseMarges2[4,3] = "??"
+kable(tableauCroiseMarges2)
+```
+    
+* Qu'obtient-on si on fait le total des effectifs lignes ?
+* Et le total des effectifs colonnes ?
+* Que remarque-t-on ?
+
+### Propriété des marges : solution
+
+Rappel du tableau :
+
+```{r, echo=FALSE}
+tableauCroiseMarges2 = tableauCroiseMarges
+tableauCroiseMarges2[4,3] = "??"
+kable(tableauCroiseMarges2)
+```
+    
+**Le total des effectifs lignes et colonnes est égal à l'effectif total.**
+
+Ici, la somme des ensembles est égale à 331994.
+
+### Fréquence totale : cas général
+
+* À partir des effectifs 
+
+$$ \frac{n_{i,j}}{n} $$
+
+* À partir des effectifs lignes
+
+$$ \frac{n_{i·}}{n} = \frac{1}{n} \sum_{j = 1}^{k} n_{i,j} $$
+
+* À partir des effectifs colonnes
+
+$$ \frac{n_{·j}}{n} = \frac{1}{n} \sum_{i = 1}^{l} n_{i,j} $$
+
+### Tableau en fréquence de l'effectif total
+
+Le tableau final :
+
+```{r, echo=FALSE}
+tableauPourcentage = tableauCroiseMarges/nrow(exemple) 
+kable(tableauPourcentage, digits = 2)
+```
+
+Que remarque-t-on :
+
+* En additionnant les fréquences ?
+* En additionnant les fréquences marginales ?
+
+### Fréquence totale : propriété
+
+* La somme des fréquence vaut 1 (100%).
+
+$$ \sum_{i = 1}^{l} \sum_{j = 1}^{k} \frac{n_{i,j}}{n} = \frac{n}{n} = 1 $$
+
+* La somme des fréquences marginales vaut 1 (100%).
+
+*Exemple pour les effectifs lignes :*
+
+$$ \sum_{i = 1}^{l} \frac{1}{n} n_{i·} = \sum_{i = 1}^{l} \frac{1}{n} \sum_{j = 1}^{k} n_{i,j} = \sum_{i = 1}^{l} \sum_{j = 1}^{k} \frac{n_{i,j}}{n} = \frac{n}{n} = 1 $$
+
+### Fréquences en ligne et en colonne
+
+Il est souvent utile d'utiliser des **fréquences par rapport aux modalités des variables utilisées, et non par rapport à l'échantillon total**.
+
+Dans un tableau de contingence, il est possible de donner les résultats en fréquences en lignes (resp. en fréquence en colonnes). Par convention, on ajoute une colonne (resp. une ligne) pour y afficher le total de chaque ligne (resp. colonne), qui doit être égal à 100%.
+
+Attention ! Lors de la lecture d'un tableau croisé, **il ne faut pas confondre fréquences en ligne et en colonne**, au risque de commettre de grandes erreurs d'interprétation.
+
+### Fréquences marginales : ligne
+
+Fréquences en ligne
+
+```{r, echo=FALSE}
+tableauPourLignes = addmargins(prop.table(addmargins(tableauCroise,1),1), 2)
+rownames(tableauPourLignes)[4] = "Ensemble"
+colnames(tableauPourLignes)[3] = "Ensemble"
+kable(tableauPourLignes, digits = 2)
+```
+
+### Fréquences marginales : colonne
+
+Fréquences en colonne
+
+```{r, echo=FALSE}
+tableauPourColonnes = addmargins(prop.table(addmargins(tableauCroise,2),2),1)
+rownames(tableauPourColonnes)[4] = "Ensemble"
+colnames(tableauPourColonnes)[3] = "Ensemble"
+kable(tableauPourColonnes, digits = 2)
+```
+
+### Fréquences marginales : cas général
+
+Dans le cas des fréquences en ligne :
+
+$$\frac{\text{Effectif de la case}}{\text{Effectif ligne}} = \frac{n_{i,j}}{n_{i·}}$$
+
+Dans le cas des fréquence en colonne :
+
+$$\frac{\text{Effectif de la case}}{\text{Effectif colonne}} = \frac{n_{i,j}}{n_{·j}}$$
+
+Vérification du total des fréquences en ligne :
+
+$$\sum_{j = 1}^{k} \frac{n_{i,j}}{n_{i·}} = \frac{n_{i·}}{n_{i·}} = 1$$
+
+## Représentation graphique
+
+### Diagramme en barre
+
+On peut utiliser le diagramme en barre pour représenter l'interaction de deux variables qualitatives. Les modalités de l'une sont représentées en abscisse. Il y a ensuite deux possibilités:
+
++ soit on représente une barre pour chacune des modalités de la seconde variable
++ soit on représente une seule barre découpée en aires différenciées par une couleur ou une texture
+
+L'axe des ordonnées donne alors l'effectif ou la fréquence.
+
+### 
+
+```{r revenu_genre_dodged}
+dt <- mutate(dt, age_br = cut(age, breaks = c(14,25,35,50,65,100)),
+             income_br = cut(income, 
+                             breaks=c(-19999, 3200, 11000, 20000, 30000, 45000, 60000, 85000, max(income)),
+                             labels =c("Moins de 3200$", "3200-11000$", "11000-20000$", "20000-30000$",
+                                       "30000-45000$", "45000-60000$", "60000-85000$", "85000$ et plus")))
+
+count(dt, income_br, sexe) %>% 
+  group_by(income_br) %>% 
+  mutate(freq = n / sum(n),
+         ci=1.96*sqrt(freq*(1-freq)/sum(n)) + 0.5 / sum(n)) %>% 
+  ggplot(aes(x = income_br, y=freq, fill=sexe)) + 
+    geom_bar(position="dodge",stat="identity") +
+    xlab("Revenus du travail artistique") +
+    ylab("") +
+    theme(axis.text.x=element_text(angle=30,hjust=1,size=13),
+        legend.text=element_text(size=13))
+```
+
+### 
+
+```{r revenu_genre_dodged_se}
+count(dt, income_br, sexe) %>% 
+  group_by(income_br) %>% 
+  mutate(freq = n / sum(n),
+         ci=1.96*sqrt(freq*(1-freq)/sum(n)) + 0.5 / sum(n)) %>% 
+  ggplot(aes(x = income_br, y=freq, fill=sexe)) + 
+    geom_bar(position="dodge",stat="identity") +
+    geom_errorbar(aes(ymin = freq-ci, ymax=freq+ci), width=.3,position=position_dodge(.9)) +
+    xlab("Revenus du travail artistique") +
+    ylab("") +
+    theme(axis.text.x=element_text(angle=30,hjust=1,size=13),
+        legend.text=element_text(size=13))
+
+```
+
+
+### 
+
+```{r revenu_genre_stacked}
+count(dt, income_br, sexe) %>% 
+  group_by(income_br) %>% 
+  mutate(freq = n / sum(n),
+         ci=1.96*sqrt(freq*(1-freq)/sum(n)) + 0.5 / sum(n)) %>% 
+  ggplot(aes(x = income_br, y=freq, fill=sexe)) + 
+    geom_bar(position="stack",stat="identity") +
+    xlab("Revenus du travail artistique") +
+    ylab("") +
+    theme(axis.text.x=element_text(angle=30,hjust=1,size=13),
+        legend.text=element_text(size=13))
+
+```
+
+# Deux variables numériques
+
+## Représentation graphique
+
+### Représentation graphique
+
+La représentation graphique la plus simple et la plus utile pour représenter deux variables numériques est le diagramme en point (*scatterplot*). Chaque observation est projetée sur un plan avec pour coordonnées la valeur de chacune des deux variables représentées.
+
+### Age et revenu
+
+```{r}
+ggplot(dt, aes(age, income)) +
+  geom_point(shape = ".")
+```
+
+### Age et log du revenu
+
+```{r}
+ggplot(dt, aes(age, log(income + 1))) +
+  geom_point(shape = ".")
+```
+
+### Age et log du revenu: densité
+
+```{r}
+ggplot(dt, aes(age, log(income + 1))) +
+  geom_bin2d()
+```
+
+### Séries temporelles
+
+Une série temporelle représente l'évolution d'une ou de plusieurs valeurs sur une longue période. On réserve habituellement le diagramme en ligne à de telles séries continues.
+
+### 
+
+```{r serietemporelle_lineplot}
+
+grants <- read.csv("./data/grants2003.csv")
+
+gr_w <- grants %>% 
+  mutate(Grant.Amount=as.numeric(Grant.Amount)) %>% 
+  group_by(Grant.Year) %>% 
+  summarise(count=n(),
+            Total.Grant=sum(Grant.Amount),
+            Mean.Grant=mean(Grant.Amount))
+
+ggplot(gr_w,aes(x=Grant.Year,y=Total.Grant)) + 
+  geom_point(stat="identity") +
+  geom_line(stat="identity") +
+  theme_bw() +
+  scale_x_continuous(breaks = seq(2003,2015)) +
+  ylim(0,max(gr_w$Total.Grant)) +
+  xlab("Année") +
+  ylab("Subventions totales")
+
+```
+
+### Moyenne des subventions par an
+
+```{r y_axis_zoom}
+ggplot(gr_w,aes(x=Grant.Year,y=Mean.Grant)) + 
+  geom_line(stat="identity") +
+  theme_bw() +
+  scale_x_continuous(breaks = seq(2003,2015)) +
+  xlab("Année") +
+  ylab("Subvention moyenne (en dollars)")
+
+```
+
+### Moyenne des subventions par an (origine à 0)
+
+```{r y_axis_large}
+ggplot(gr_w, aes(x = Grant.Year, y = Mean.Grant)) + 
+  geom_line(stat = "identity") +
+  theme_bw() +
+  ylim(0,1200) +
+  scale_x_continuous(breaks = seq(2003,2015)) +
+  xlab("Année") +
+  ylab("Subvention moyenne (en dollars)")
+```
+
+## Indicateurs
+
+### Le coefficient de corrélation
+
+Le coefficient $r$ de Pearson permet de mesurer le degré de corrélation linéaire entre deux variables quantitatives $X$ et $Y$. Il est compris entre [-1 ; 1] :
+
++ Le signe indique une corrélation positive ou négative
++ 0 signifie une absence de corrélation
++ Plus la valeur absolue est proche de 1, plus le degré de corrélation linéaire est élevé
+
+Il se calcule de la manière suivante : 
+
+$$r = \frac{cov(X, Y)}{\sigma(X)\sigma(Y)}$$
+
+### La covariance 
+
+La covariance de deux variables $X$ et $Y$ permet d'estimer dans quelle mesure deux variables changent conjointement.
+
+$$cov(X,Y) = \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{X})(y_i - \bar{Y})$$
+Le signe de la covariance nous permet d'estimer si le lien entre les deux variables est positif ou négatif, mais l'ampleur de la covariation n'est pas simple à estimer (parallèle avec la variance).
+
+C'est pourquoi le $r$ de Pearson normalise la covariance avec le produit des écarts-types.
+
+### r de Pearson : lecture graphique
+
+![Interprétation graphique du r de Pearson](figures/pearson.png)
+
+### La corrélation linéaire
+
+```{r}
+cr <- data_frame(y = rnorm(100)^2,
+                x = log(y))
+
+```
+
+Le r de Pearson mesure seulement la force de la *corrélation linéaire* entre deux variables. D'autres relations, non-linéaires, peuvent exister. Sur la figure suivante, les deux variables sont parfaitement corrélées ($x = log(y)$), mais le r de pearson est seulement de `r cor(cr$x, cr$y)` car la relation n'est pas linéaire ($x = ay + b$).
+
+### Corrélation logarithmique
+
+```{r}
+ggplot(cr, aes(x=x, y=y)) + 
+  geom_point() +
+  theme_bw()
+```
+
+
+# Catégoriel X numérique
+
+## Représentation graphique
+
+### Représentation graphique
+
+Comme pour la statistique univariée, on commence par regarder la distribution de la variable numérique dans les différentes catégories avant de calculer des indicateurs résumés par catégories et de les comparer entre eux.
+
+On peut: comparer les distributions (histogrammes ou diagrammes de densité) ; comparer les indicateurs de tendances centrale et de dispersion (boites à moustaches) ; ou les deux (violins plots).
+
+### Revenus du travail artistique par sexe : densité
+
+```{r densityplot_multiple}
+set.seed(100)
+ds <- filter(dt, income < 200000) %>% sample_n(500)
+
+ggplot(ds, aes(color = sexe, x = income)) + 
+  geom_density() +
+  labs(color = "Sexe", x = "Revenus du travail artistique", y = "Densité")
+
+```
+
+### Revenus du travail artistique par sexe : histogramme
+
+```{r histogramme_facette}
+ggplot(ds, aes(x = income, fill = sexe)) + 
+  geom_histogram() +
+  facet_wrap(~sexe, nrow = 2, scales = "free_y") +
+  labs(fill = "Sexe", x = "Revenus du travail artistique", y = "Densité")
+
+```
+
+### Revenus du travail artistique par sexe : boxplot
+
+```{r boxplot_multiple}
+ggplot(ds, aes(x = sexe, y = income)) + 
+  geom_boxplot() +
+  theme_bw() +
+  xlab("Sexe") +
+  ylab("Revenus du travail artistique")
+```
+
+### Revenus du travail artistique par sexe : violin plot
+
+```{r violinplot_multiple}
+ggplot(ds, aes(x = sexe, y = income)) + 
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  theme_bw() +
+  xlab("Sexe") +
+  ylab("Revenus du travail artistique")
+```
+
+## Comparaison
+
+### Comparaison
+
+Une fois regardé la distribution, on peut déterminer quels sont les indicateurs de tendance centrale et de dispersion les plus pertinents, les calculer pour chaque groupe constitué par les observations appartenant à une modalité de la variable catégorielle, et les comparer entre eux.
+
+```{r indicateurs_compares}
+group_by(dt, sexe) %>% 
+  summarise(Moyenne = mean(income),
+            Ecart_type = sd(income),
+            d1 = quantile(income, .1),
+            q1 = quantile(income, .25),
+            Mediane = median(income),
+            q3 = quantile(income, .75),
+            d9 = quantile(income, .9),
+            rapport_interdecile = d9 / d1) %>% 
+  gather(Indicateur, value, - sexe) %>% 
+  spread(sexe, value) %>% 
+  arrange(factor(Indicateur, levels = c("Moyenne", "Ecart_type", "d1", "q1", "Mediane", "q3", "d9", "rapport_interdecile") )) %>% 
+  kable(digits = 0)
+```
+
