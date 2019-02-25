@@ -9,7 +9,7 @@ Cours d'introduction à la sociologie quantitative à destination des doctorants
   - [Description univariée](02_description_univariee.pdf)
   - [Description bivariée](02_description_bivariee.pdf)
 3. [Inférence et tests d'hypothèses](03_inference.pdf)
-4. Analyse géométrique de données
+4. [Analyse géométrique de données](04_AGD.pdf)
 5. Régressions
 
 ## Niveau 2: Produire des analyses de données quantitatives

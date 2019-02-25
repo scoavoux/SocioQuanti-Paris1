@@ -1,0 +1,803 @@
+---
+title: "Séance 4 : L'analyse géométrique de données"
+subtitle: "Introduction à la sociologie quantitative, niveau 1"
+author: "Samuel Coavoux"
+output:
+  beamer_presentation:
+    latex_engine: xelatex
+    toc: true
+    colortheme: beaver
+    highlight: tango
+    theme: Copenhagen
+bibliography: /home/vvxf6766/PortKnox/bib/mainlibrary.bib
+lang: fr_FR
+fontsize: 10pt
+csl: chicago-author-date.csl
+header-includes:
+  - \widowpenalties 1 150
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r chunkoptions,echo=FALSE,warning=FALSE}
+library(knitr)
+
+### Common Knitr options
+opts_chunk$set(echo=FALSE,warning=FALSE,message=FALSE,fig.path='./Plot/plot-', comment="",fig.width=9,fig.height=6,fig.lp="",results="asis")
+options("scipen"=100)
+```
+
+```{r library}
+library(tidyverse)
+library(FactoMineR)
+library(factoextra)
+library(here)
+theme_set(theme_bw())
+
+```
+
+# Introduction générale : une statistique géométrique
+
+## Première définition
+
+L'**analyse géométrique des données** (AGD) est l'une des dénominations actuellement privilégiée pour désigner une famille de techniques statistiques, les **analyses factorielles**.
+
+Ces techniques ont pour point commun de s'appuyer sur des calculs similaires pour **réduire un espace pluridimensionnel à un ensemble restreint de dimensions**, généralement entre 2 à 4. En l'occurence, les dimensions sont les variables (ou les modalités de variables) décrivant une observation statistique. En ce sens, l'AGD **extrait d'un grand nombre de variable un nombre restreint de variables synthètiques**.
+
+<!--Ici, un graph d'exemple: résultats d'une ACM-->
+
+## La meilleure projection d'un nuage
+
+![](./img/cheval.png){height=80%}
+
+## La meilleure projection d'un nuage
+
+Le problème: en quoi une représentation est-elle supérieure à une autre? La réponse statistique: la meilleure projection est celle qui maximise la variance, c'est-à-dire qui maintient au mieux les différences entre les observations.
+
+## Histoire
+
+L'analyse de données est parfois considérée comme une branche des statistique opposée à l'analyse inférentielle, et notamment à l'idée selon laquelle les modèles statistiques viendraient seulement confirmer ou infirmer des hypothèses établies par les chercheurs.
+
+Jean-Baul Benzécri, qui se réclame de cette perspective d'analyse de données et est notamment opposé à l'analyse par régression, et ses collaborateurs produisent à partir des années 1960 les principales techniques d'analyse factorielle.
+
+## Usages en sociologie
+
+En sociologie, le succès de l'AGD est du à la rencontre avec le modèle théorique du champ chez Pierre Bourdieu [@duval2013_Lanalysedescorrespondances]. On note des "affinités electives" entre la pensée relationelle de Bourdieu et l'approche géométrique de la statistique multivariée [@rouanet2000].
+
+Comme Benzécri, Bourdieu est méfiant envers la statistique inférentielle, critiquant notamment la "sociologie des variables" incarnée selon lui par l'école de Paul Lazarsfeld.
+
+Une technique française? Spearman avait développé une technique proche, encore souvent utilisée en psychologie ou en biologie.
+
+::: notes
+
+Inventée en France (malgré d'autres techniques proches développées, par exemple, par Charles Spearman: factor analysis pour étudier intelligence humaine), principalement utilisé par une école française de sociologie, et apparemment opposée à la technique centrale de la sociologie états-unienne moderne, la régression [@ollion2011]: l'AGD peut apparaître comme une particularité française. Elle est cependant utilisée en dehors de la sociologie (psychologie, biologie), en dehors de la France (sociologie des pratiques culturelles)
+
+:::
+
+## Bourdieu et l'AGD
+
+> Ceux qui connaissent les principes de l'analyse des correspondances multiples saisiront l'affinité entre cette méthode d'analyse mathématique et la pensée en termes de champ. Ayant pris en compte l'ensemble des agents efficients (individus et, à travers eux, institutions) et l'ensemble des propriétés -- ou des atouts -- qui sont au principe de leur action, on peut attendre de l'analyse des correspondances qui, ainsi utilisée n'a rien de la méthode purement descriptive que veulent y voir ceux qui l'opposent à l'analyse de régression, qu'elle porte au jour la structure des oppositions, ou, ce qui revient au même, la structure de la distribution des pouvoirs et des intérêts spécifiques qui détermine, et explique, les stratégies des agents. [@bourdieu2000_Lesstructuressociales]
+
+## Ceci n'est pas une ACM
+
+![](./img/Bourdieu_EspaceSocial.png){height=80%}
+
+## Toutes choses (in)égales par ailleurs
+
+Les oppositions entre AGD et régression sont à nuancer [@rouanet2002] notamment parce qu'elles concernent plus l'usage de ces techniques que leurs potentialités. Malgré sa réputation de technique exploratoire, l'AGD ne permet pas une approche purement inductive, ne serait-ce que parce qu'elle dépend des variables produites et analysées, qui dépendent elles-mêmes d'hypothèses plus ou moins explicitées.
+
+Cependant, les régressions cherchent à décomposer l'effet de différentes variables et à raisonner toutes choses égales par ailleurs ; l'AGD cherche au contraire les corrélations en permet de raisonner **toutes choses inégales par ailleurs**.
+
+::: notes
+
+Peut-on décomposer l'effet du statut d'agriculteur et l'effet de la résidence rurale? En régression, cela revient à s'interroger sur ce que ferait un agriculteur s'il habitait Paris... En AGD, à constater que les deux sont fortement corrélés.
+
+:::
+
+## Objectifs: une réduction contrôlée de la dimensionnalité
+
+"Systématiser les démarches de l’analyse descriptive" [@volle1997_Analysedesdonnees]. On part d'une situation dans laquelle un individu (au sens statistique: peut-être une personne, une institution, etc.) est définit par de nombreuses variables/modalités de variables.
+
+Il s'agit de "consentir à une perte en information afin d’obtenir un gain en signification" [@volle1997_Analysedesdonnees] et tout en cherchant à limiter cette perte.
+
+## Objectifs: une réduction contrôlée de la dimensionnalité
+
+L'AGD vise à trouver un nombre restreint de méta-variables synthétiques non corrélées, que l'on appelera axes, facteurs ou composants, tels que:
+
++ il y ait une réduction importante de la dimensionnalité de l'information (on passe d'un grand nombre de variables à un nombre restreint de méta-variables) ;
++ les méta-variables choisit sont celles qui résument le mieux les variables d'origine, c'est-à-dire celles qui **concentrent la plus grande partie de la variance** parmi toutes les méta-variables possibles.
+
+## Techniques
+
+Il existe de nombreuses techniques dans la famille de l'AGD. Les plus connues sont les suivantes:
+
++ Analyse factorielle des correspondances (AFC) -- *correspondence analysis* (CA) : deux variables catégorielles (il s'agit de l'analyse géométrique d'un tableau croisé);
++ Analyse en composantes principales (ACP) -- *principal component analysis* (PCA) : uniquement des variables quantitatives (plus des variables catégorielles en illustratif);
++ Analyse des correspondances multiples (ACM) -- *multiple correspondence analysis* (MCA) : plusieurs variables catégorielles.
+
+Dans ce cours, nous nous concentrerons sur l'ACM, la plus utilisée aujourd'hui dans la sociologie française, et secondairement sur l'ACP.
+
+## Pourquoi utiliser de l'AGD?
+
+Lorsque l'on souhaite simplifier une base de données. Mais plusieurs cas possibles:
+
++ explorer une base complexe, en repérant des associations de nombreuses variables que l'on ne peut pas nécessaire repérer deux à deux (il faut tout de même accompagner l'AGD d'autres statistiques descriptives) ;
++ résumer synthétiquement l'information (réduire la dimensionnalité) pour intégrer les nouvelles variables dans d'autres analyses ;
++ mettre au jour des variables latentes, inobservables.
+
+Le troisième cas est celui de l'approche bourdieusienne classique: la mise au jour des capitaux structurant un espace social, qui sont ensuite croisé à des variables illustratives, explicatives.
+
+## Plan du cours
+
+1. Le raisonnement géométrique: notions générales
+3. Théorie de l'ACM
+4. Interprétation de l'ACM
+5. Théorie et interprétation de l'ACP
+
+# Un raisonnement géométrique
+
+## Objectifs
+
+Dans cette première partie, nous allons chercher à comprendre à partir d'une exemple fictionnel comment il est possible de résumer l'information contenue dans un nuage de points. L'objectif est double:
+
++ comprendre le raisonnement géométrique de l'AGD: il s'agit de dessiner un nuage puis de chercher le ou les axes qui permettent sa meilleure représentation
++ définir les concepts et indicateurs principaux que l'on utilisera par la suite: coordonnées, variance, axe principal, inertie, contribution, cosinus carré.
+
+## Les données initiales
+
+::: notes
+On ajoute des poids, car il est possible d'avoir des poids, mais on ne les utilise pas.
+:::
+
+```{r data}
+d <- data_frame(label = paste0("M", 1:10),
+                x = c(0, 6, 14, 6, 12, -8, 2, 6, 10, 12),
+                y = c(-12, -10, -6, -2, 0, 2, 4, 4, 10, 10),
+                weight = 1)
+kable(d)
+```
+
+
+
+## 
+
+```{r}
+gen_opts <- list(scale_x_continuous(breaks = seq(-15,15), minor_breaks = NULL),
+                 scale_y_continuous(breaks = seq(-15,15), minor_breaks = NULL),
+                 coord_fixed())
+ggplot(data = d, mapping = aes(x = x, y = y, label = label)) + 
+  geom_point() +
+  geom_label(nudge_x = 1) +
+  gen_opts
+```
+
+## Trouver le centre du nuage
+
+Le centre du nuage a pour coordonnés la moyenne pondérée des coordonnées des points. 
+
+```{r}
+d <- add_case(d, label = "G", x = mean(d$x), y = mean(d$y), weight = 0)
+```
+
+Il s'agit du point tel que la somme des vecteurs entre chaque point du nuage et le centre est nulle.
+
+$$\frac{1}{n}\sum_{i=1}^n{\overrightarrow{GM_i}} = \overrightarrow{0}$$
+
+## 
+
+```{r, fig.height=5}
+ggplot(data = d, mapping = aes(x = x, y = y, label = label)) + 
+  geom_point() +
+  geom_label(nudge_x = 1) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 6) +
+  gen_opts
+
+```
+
+## Distance entre deux points et variance du nuage
+
+Le carré de la distance entre deux points est égal à la somme des carrés des distances entre leurs coordonées (Pythagore)
+
+$$\delta_{ij} = (x_i-x_j)^2 + (y_i-y_j)^2$$
+
+La variance du nuage de point est égale à la somme des distances carrés entre chaque points et le centre du nuage G.
+
+$$\text{var} = \sum_{i=1}^n{(x_i-x_G)^2 + (y_i-y_G)^2}$$
+
+## Projection d'un point sur une droite
+
+Les points sont définis par leurs coordonnés x et y. Il s'agit des projections orthogonales de ces points respectivement sur l'abscisse et l'ordonnée.
+
+```{r, fig.height=5}
+ggplot(data.frame(x=3, y=5), aes(x, y)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_hline(aes(yintercept = 0)) +
+  geom_segment(data = data.frame(x = 3, y = 5, yend = 0), aes(x = x, xend=x, y=y, yend=yend), linetype = "dashed") +
+  lims(x = c(0, 4), y = c(0, 7))
+```
+
+## Variance d'un axe
+
+La variance d'un axe est la variance de la projection des points du nuage sur cet axe.
+
+$$var_x = \sum_{i = 1}^n (x_i - x_G)^2$$
+
+## Contribution d'un point au nuage
+
+On appelle contribution d'un point au nuage la part de la variance totale qui est due à ce point, c'est à dire le carré de la distance entre le point et le centre G du nuage.
+
+$$ctr_i = \frac{(x_i-x_G)^2 + (y_i-y_G)^2}{var}$$
+
+Par définition, la contribution est donc comprise entre 0 (si le point se confond avec le centre du nuage) et 1 (si le point est le seul point du nuage différent du centre).
+
+## Contribution d'un point à un axe
+
+De la même façon, on peut calculer la contribution d'un point à un axe. Il s'agit alors de la part de la variance de l'axe due à ce point.
+
+$$ctr_{xi} = \frac{(x_i-x_G)^2}{var_x}$$
+
+
+## Qualité de la projection: cosinus carré
+
+Le cosinus carré est une mesure de la qualité de la projection d'un point sur un axe.
+
+![](img/cos2.png)
+
+
+## Qualité de la projection: cosinus carré
+
+$$cos^2 = \frac{(GM')^2}{(GM)^2}$$
+
+Il vaut 0 si $M' = G$, c'est-à-dire si la projection d'un point sur un axe est le centre de cet axe ; il vaut 1 si $M = M'$, c'est à dire si la projection d'un point sur un axe est le point lui-même. Ainsi, plus le cosinus carré est proche de 1 et meilleure est la représentation sur l'axe.
+
+## Axes principaux
+
+On appelle axe principal du nuage la droite qui, passant par le centre du nuage, maximise la variance des projections de chaque point du nuage.
+
+Le second axe principal est l'axe orthogonal au premier et passant par le centre du nuage qui maximise à son tour la variance des projections de chaque point.
+
+## 
+
+```{r}
+insl <- data_frame(slope = c(1.9626105055052, 3.5, 1, -1.5),
+                   intercept = -6 * slope,
+                   group = letters[1:4])
+
+ggplot(data = d, mapping = aes(x = x, y = y, label = label)) + 
+  geom_point() +
+  geom_label(nudge_x = 1) +
+  geom_abline(data = insl, aes(intercept = intercept, slope = slope, color = group)) +
+  scale_color_discrete(guide = FALSE) +
+  gen_opts
+```
+
+## 
+
+```{r}
+
+ggplot(data = d, mapping = aes(x = x, y = y, label = label)) + 
+  geom_point() +
+  geom_label(nudge_x = 1) +
+  geom_abline(data = insl[1, ], aes(intercept = intercept, slope = slope, color = group)) +
+  scale_color_discrete(guide = FALSE) +
+  gen_opts
+```
+
+## 
+
+```{r}
+insl <- data_frame(slope = c(1.9626105055052, -0.50952544949443),
+                   intercept = -6 * slope)
+ggplot(data = d, mapping = aes(x = x, y = y, label = label)) + 
+  geom_point() +
+  geom_label(nudge_x = 1) +
+  geom_abline(data = insl, aes(intercept = intercept, slope = slope)) +
+  gen_opts
+```
+
+<!--
+Singular value decomposition/diagonalisation de matrice-->
+
+## Eigenvalue
+
+On appelle eigenvalue de l'axe n la variance de la projection sur l'axe n du nuage. On la note $\lambda_n$. La somme des $lambda_n$ est égale à la variance totale du nuage
+
+$$\sum_{i=1}^{n}\lambda_n = var$$
+
+On appelle inertie la part de chaque axe dans la variance totale.
+
+$$inertie_i = \frac{\lambda_i}{var}$$
+
+## Principe de l'analyse géométrique de données
+
+Ce qui a été exposé est le principe général de l'AGD: 
+
+1. on part d'une représentation d'un nuage à n dimensions (dans l'exemple, deux) ;
+2. on calcule le centre du nuage ainsi que sa variance ;
+3. on recherche, par un algorithme, le premier axe qui maximise la variance des projections, puis le deuxième, ... le nième ;
+4. on calcule l'eigenvalue de chaque axe ; et sur chaque axe, la contribution et le cosinus carré de chaque axe (qui seront nécessaires à l'interprétation).
+
+Avec n > 3, ce qui est le plus souvent le cas dans l'AGD, il devient impossible ou du moins très difficile de représenter graphiquement le nuage de points, mais la logique géométrique reste inchangée.
+
+## Pondération
+
+Jusque là, nous n'avons parlé que d'un nuaage dans lequel tous les points ont le même poids. Il est possible de réaliser la même opération sur des nuages de points pondérés. Dans ce cas, chaque point se voit attribuer un poids qui mesure son importance dans le nuage.
+
+Le cas le plus fréquent est celui dans lequel on partitionne un nuage de points de poids égal en différents sous-nuages. On peut alors considérer chaque sous-nuage comme étant lui-même un point unique, dont les coordonnés sont égales à la moyenne des coordonnées des points, et dont le poids est égal au nombre de points inclus dans le sous-nuage.
+
+## Partition du nuage
+
+Il est possible de partitionner un nuage de points en sous-ensembles. Chaque sous-ensemble aura pour barycentre le point dont les coordonnées sont la moyenne des coordonnés de ses points (le centre du sous-nuage). Le nuage composé par les barycentres de chaque sous-ensemble, ayant chacun pour poids le nombre de points dans le sous-ensemble, aura les mêmes propriétés que le nuage complet (même centre, même variance)
+
+<!--
+Mettre les deux graphes côte à côte
+-->
+
+## 
+
+```{r}
+d$group <- c("A", "A", "C", "C", "C", "B", "C", "C", "C", "C", NA)
+ggplot(filter(d, !is.na(group)), aes(x, y, color = group, label = label)) +
+  geom_point() +
+  geom_label(nudge_x = 1) +
+  scale_colour_discrete(guide=FALSE) +
+  gen_opts
+```
+
+## 
+```{r}
+filter(d, !is.na(group)) %>% 
+  group_by(group) %>% 
+  summarise(x = mean(x), y = mean(y), weight = sum(weight)) %>% 
+  ggplot(aes(x, y, color = group, label = group, size = (weight*3)^0.5)) +
+  geom_point() +
+  geom_label(nudge_x = 1.3) +
+  scale_x_continuous(breaks = seq(-15,15), minor_breaks = NULL, limits = c(-9, 15)) +
+  scale_y_continuous(breaks = seq(-15,15), minor_breaks = NULL, limits = c(-13, 11)) +
+  coord_fixed() +
+  scale_colour_discrete(guide=FALSE) +
+  scale_size(guide=FALSE)
+```
+
+## Variance et contribution dans un nuage pondéré
+
+Soit un nuage de $n$ points de poids $w$ et $W$ la somme des poids ($W =\sum_{i=1}^n{w_i}$). Dans ce cas, la variance (du nuage et de la projection sur un axe) et la contribution (idem) sont pondérés. Par exemple, pour un nuage à deux dimensions, la variance est:
+
+$$\text{var} = \sum_{i=1}^n{((x_i-x_G)^2 + (y_i-y_G)^2) \times \frac{w_i}{W}}$$
+
+et la contribution d'un point
+
+$$ctr_i = \frac{((x_i-x_G)^2 + (y_i-y_G)^2) \times \frac{w_i}{W}}{var}$$
+
+# L'analyse en composantes principales
+
+## Principe
+
+L'analyse en composantes principales (principal component analysis, ACP) est une technique d'AGD qui permet de chercher les axes principaux d'un nuage de points définis par des variables quantitatives.
+
+## Préparation des données
+
+Bien que cela ne soit pas obligatoire, il est fortement conseillé de centrer et réduire les variables avant l'ACP. Cela permet de rendre commensurable des mesures réalisées dans des unités variées. La plupart des implémentations informatique de la technique le font automatiquement.
+
+Centrer et réduire une variable signifie la transformer de sorte à ce que sa moyenne soit 0 et son écart-type 1. On remplace ainsi chaque observation $x_i$ de la variable $x$ par une transformation:
+
+$$\frac{x_i - \bar{x}}{\sigma_x}$$
+
+où $\bar{x}$ est la moyenne de $x$ et $\sigma_x$ son écart-type.
+
+## Distances entre des individus
+
+Soit deux observations $e_i$ et $e_j$, définies par leurs coordonnées sur $K$ axes correspondant à autant de variables quantitatives centrées et réduites $x^k$.
+
+La distance carrée entre deux individus est, comme dans le cas général décrit dans la section précédente:
+
+$$d_{ij}^2 = \sum_{k = 1}^K{(x_i^k - x_j^k)^2}$$
+
+## Variance
+
+La variance du nuage est la somme pondérée des distances carrées à l'origine (G)
+
+$$\sum_{i=1}^{n}{\frac{1}{n}\times d^2_{iG}}$$
+
+Si les variables sont centrées et réduites, leur variance respective est de 1 et la variance totale du nuage est donc égale au nombre de variables.
+
+On calcule les axes principaux.
+
+## Représentation graphique
+
+**Des observations**: Les coordonnées de chaque observation sur chaque axe principal est le résultat de sa projection sur cet axe. La contribution d'une observation à un axe est la part de la variance totale des projections des observations sur cet axe produit par la projection de cette observation. Le cosinus carré, qui mesure la qualité de la projection, est celui de l'angle entre la droite reliant le centre du nuage et l'observation et celle reliant le centre du nuage et sa projection sur l'axe.
+
+**Des variables**: Les variables sont représentées sur les axes principaux par leur coefficient de corrélation avec ces axes.
+
+## 
+
+```{r}
+circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+    r = diameter / 2
+    tt <- seq(0,2*pi,length.out = npoints)
+    xx <- center[1] + r * cos(tt)
+    yy <- center[2] + r * sin(tt)
+    return(data.frame(x = xx, y = yy))
+}
+dat <- circleFun(diameter = 2)
+#geom_path will do open circles, geom_polygon will do filled circles
+
+seq <- read.table(text = "
+x y xend yend type
+0 0 .73 .35 var
+.73 0 .73 .35 proj
+0 .35 .73 .35 proj", header = TRUE)
+
+lab <- data_frame(x = c(-.3, .73), y = c(.35, -.1), 
+                  label = c("{r^2}(Axe_k, x[i])", "{r^2}(Axe_l, x[i])"))
+
+ggplot() + 
+  geom_path(aes(x,y), dat) + 
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend), data = filter(seq, type == "var"), arrow = arrow(length = unit(0.15, "inches"))) +
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend), data = filter(seq, type == "proj"), linetype = "dashed") +
+  geom_hline(aes(yintercept = 0)) +
+  geom_vline(aes(xintercept = 0)) +
+  geom_text(aes(x = x, y = y, label = label), data=lab, parse=TRUE) +
+  labs(y = "Axe k", x = "Axe l") +
+  coord_fixed()
+```
+
+## Interprétation
+
+1. Choix du nombre d'axes
+2. Interprétation par les coordonnées des variables
+3. Interprétation par les observations (selon le jeu de données)
+4. Interprétation par les variables supplémentiares
+
+On prend pour exemple un jeu de données mesurant les performances de 41 ahtletes à chacune des dix épreuves de deux compétitions de décathlon.
+
+```{r}
+data(decathlon)
+res.pca <- PCA(decathlon, quanti.sup = 11:12, quali.sup=13, graph = FALSE)
+```
+
+## Examen de l'inertie
+
+On commence par examiner l'inertie des axes, c'est à dire la part de variance qu'ils résument. On peut pour cela les représenter graphiquement.
+
+Cet examen a pour objectif de déterminer le nombre d'axe à retenir. On cherche à réduire la dimensionnalité des données, et donc à faire en sorte d'avoir un nombre de méta-variables plus faible que le nombre de variables d'origines. On va donc décider à ce stade de conserver seulement les quelques axes les plus importants.
+
+## 
+
+```{r}
+fviz_eig(res.pca)
+```
+
+## Choix du nombre d'axes à retenir
+
+Une bonne manière de faire est de rechercher les "coudes" dans le diagramme en barre de l'inertie, c'est-à-dire les écarts importants d'inertie entre deux axes successifs. En effet, il serait injustifié de couper après un axe arbitraire si l'axe suivant à une inertie très proches (et donc qu'il est autant représentatif des données).
+
+L'autre critère à prendre en compte est le degré de finesse que l'on souhaite conserver: préfère-t-on résumer très fortement, et donc plus caricaturalement, l'information des données originelles, ou veux-t-on plus de précision. Plus on souhaite résumer et moins on choisit d'axes.
+
+##
+
+```{r}
+fviz_eig(res.pca)
+```
+
+##
+
+```{r}
+fviz_pca_var(res.pca, invisible="quanti.sup", repel = TRUE, axes = c(1, 2))
+```
+
+## 
+
+```{r}
+fviz_pca_var(res.pca, invisible="quanti.sup", repel = TRUE, axes = c(3, 4))
+```
+
+## Interprétation des axes: contribution des observations
+
+```{r}
+fviz_contrib(res.pca, choice = "ind")
+```
+
+## Interprétation des axes: contribution des observations
+
+```{r}
+fviz_contrib(res.pca, choice = "ind", axes = 2)
+```
+
+## Interprétation des axes: contribution des observations
+
+```{r}
+fviz_contrib(res.pca, choice = "ind", axes = 3)
+```
+
+## Interprétation des axes: contribution des observations
+
+```{r}
+fviz_contrib(res.pca, choice = "ind", axes = 4)
+```
+
+
+## Interprétation des axes: coordonnées des observations
+
+```{r}
+fviz_pca_ind(res.pca, axes = c(1, 2), repel = TRUE)
+```
+
+## Interprétation des axes: coordonnées des observations
+
+```{r}
+fviz_pca_ind(res.pca, axes = c(3, 4), repel = TRUE)
+```
+
+## 
+
+```{r}
+fviz_pca_var(res.pca,  repel = TRUE, axes = c(1, 2))
+
+```
+
+# Théorie de l'analyse des correspondances multiples
+
+## Principe
+
+L'analyse des correspondances multiples est une technique d'AGD qui permet de résumer un ensemble de variables catégorielles.
+
+Soit une base de données comprenant $Q$ variables; les modalités de la variable $q$ sont désignées par $K_q$; et $K$ désigne l'ensemble des modalités (des catégories), soit la somme des $K_q$ possibles. 
+
+Dans l'ACM, on construit un espace de $K-Q$ dimensions. En effet, une variable à n modalités peut être exprimée graphiquement par $n-1$ axes.
+
+## Principe
+
+Dans cet espace, on projette deux nuages de points: 
+
++ le nuage des individus: chaque point est une observation de la base de données originale, de poids 1;
++ le nuage des modalités: chaque point est une modalité, dont les coordonnées sont égales à la moyenne des coordonnées des observations qui prennent cette modalité (le barycentre du sous-nuage des individus) et dont le poids est égal au nombre d'observations dans cette catégorie.
+
+Ces deux nuages sont équivalents (même variance, même poids relatifs, même axes principaux). On cherche alors les axes principaux qui résument le mieux le nuage.
+
+## Principe
+
+Enfin, vient la phase d'interprétation des résultats. On décide alors du nombre d'axes qu'ils convient de commenter à l'aide de l'inertie. On nomme alors la structure latente décrite par les axes (les méta-variables) à l'aide des coordonnées, des contributions et des cosinus carrés.
+
+## Distance
+
+La distance carrée entre deux individus $i$ et $i'$ relative à une question $q$ est la somme de l'inverse des fréquences des modalités respectives. 
+$$d_q^2(i, i') = \frac{1}{f_k} +\frac{1}{f_{k'}}$$
+
+Elle vaut évidemment 0 si les deux individus ont la même modalité.
+
+La distance carrée totale entre deux individus est la somme pondérée de la distance carrée sur chaque question.
+
+$$d^2(i, i') = \frac{1}{Q}\sum_{q \in Q}{d_q^2(i, i')}$$
+
+## Variance du nuage des individus
+
+La distance d'un point $M_i$ au centre du nuage G est:
+
+$$(GM^i)^2 = (\frac{1}{Q}\sum_{k \in K_i}{\frac{1}{f_k}}) -1$$
+
+La variance du nuage est la somme pondérée des carrés des distances:
+
+$$var = \frac{1}{n}\times \sum_{i = 1}^n{(GM^i)^2} = \frac{K}{Q}-1$$
+
+## Variance du nuage des catégories
+
+La distance carrée entre deux catégories $k$ et $k'$ dépend de l'effectif de chacune, respectivement $n_k$ et $n_{k'}$ et de l'effectif des individus présents dans les deux catégories, $n_{kk'}$.
+
+$$M^kM^{k'} = \frac{n_k + n_{k'} - 2n_{kk'}}{\frac{n_k \times n_{k'}}{n}}$$
+
+Elle est d'autant plus faible que les deux catégories sont souvent choisies en même temps (elle vaut 0 si $n_k + n_{k'} = 2n_{kk'}$, c'est-à-dire si toutes les observations de catégorie $k$ sont également de catégorie $k'$ et vice-versa). Elle est d'autant plus grande qu'il y a peu d'observations ayant les deux catégories entre les deux catégories et que ces catégories ont des effectifs importants.
+
+## Variance du nuage des catégories
+
+La distance carré du point de la catégorie k du centre du nuage est:
+
+$$(GM^k)^2 = \frac{1}{f_k}-1$$
+
+=> plus une catégorie est peu choisie et plus elle est loin du centre du nuage
+
+La variance du nuage des catégories est la même que la variance du nuage des observations, $\frac{K}{Q} - 1$.
+
+## Contribution des catégories
+
+Le point moyen des modalités d'une variable est G.
+
+La contribution d'une catégorie au nuage de point dépend de sa fréquence ; la contribution d'une question de son nombre de modalités
+
+$$ctr_k = \frac{1-f_k}{K-Q}$$
+
+$$ctr_q = \frac{K_q - 1}{K-Q}$$
+
+## Inertie
+
+L'eigenvalue $\lambda_l$ de l'axe principal $l$, est égale à la variance de la projection du nuage sur cet axe. La somme de toutes les eigenvalue est égale à la variance totale du nuage.
+
+## Inertie modifiée
+
+On présente le plus souvent non pas l'eigenvalue brute, mais le taux de variaux $\tau_l$, c'est à dire la part de la variance totale capturée par l'axe principal $l$. $\tau_l = \frac{\lambda_l}{var}$.
+
+Pour les nuages de grandes dimensionnalité, il est normal que ce taux soit relativement faible (de l'ordre de 0.1 pour le premier axe par exemple). C'est un effet de la construction de la méthode. 
+
+Benzecri a donc proposé d'utiliser le taux modifié.
+
+## Inertie modifiée
+
+Le taux modifié s'appuie sur la pseudo-eigenvalue $\lambda'_l$.
+
+$$\lambda'_l = (\frac{Q}{Q-1})^2 \times (\lambda_l - \bar{\lambda})^2 $$
+
+où $\bar{\lambda}$ désigne la moyenne des eigenvalue des axes. 
+
+On peut alors obtenir un taux d'inertie modifié:
+
+$$\tau'_l = \frac{\lambda'_l}{\sum_{l=i}^{l_{max}}{\lambda'_l}}$$
+
+Ce taux peut faciliter la comparaison entre modèles (il pondère l'inertie par la dimensionnalité pour ne pas sanctionner les nuages les plus complexes), mais son usage n'est pas consensuel.
+
+## Elements illustratifs
+
+Il est possible de projeter des individus et des variables supplémentaires.
+
++ une observation supplémentaire est une observation qui ne participe pas à la construction des axes;
++ une variable supplémentaire est une variable qui ne participe pas au calcul de la distance entre deux individus.
+
+## Elements illustratifs
+
+On calcule les coordonnées sur les axes principaux des observations supplémentaires à partir des modalités de variables actives (elles seront proches des observations dont les modalités sont proches) ; et les coordonnées des modalités supplémentaires sont les barycentres des sous-nuage d'observations dans cette modalité. Les individus et modalités supplémentaires ont des coordonénes et des cosinus carrés qui permettent de mesurer la qualité de leur représentation ; mais la notion de contribution ne fait pas sens pour eux, car ils ne participent pas à la variance du nuage.
+
+# Construction et interprétation de l'ACM
+
+## Interprétation de l'ACM
+
+Le jeu de données d'exemple rassemble le résultat d'un questionnaire portant sur les pratiques de boisson du thé.
+
+```{r}
+data(tea)
+res.mca <- MCA(tea,quanti.sup=19,quali.sup=20:36, graph=FALSE)
+```
+
+## Choix du nombre d'axes
+
+```{r}
+fviz_eig(res.mca)
+```
+
+## Interprétation de l'axe 1
+
+```{r}
+source("mca_df.R")
+x <- mca_df(res.mca)
+```
+
+```{r}
+fviz_contrib(res.mca, choice = "var", axes = 1)
+```
+
+## Interprétation de l'axe 1
+
+```{r}
+select(x, Mod, starts_with("Dim 1")) %>% 
+  arrange(desc(`Dim 1 contrib`)) %>% 
+  group_by(`Dim 1 coord` > 0) %>% 
+  slice(c(1:7)) %>% 
+  ungroup() %>% 
+  select(-5) %>% 
+  arrange(desc(`Dim 1 coord`)) %>% 
+  kable()
+```
+
+## Interprétation de l'axe 2
+
+```{r}
+fviz_contrib(res.mca, choice = "var", axes = 2)
+```
+
+## Interprétation de l'axe 2
+
+```{r}
+select(x, Mod, starts_with("Dim 2")) %>% 
+  arrange(desc(`Dim 2 contrib`)) %>% 
+  group_by(`Dim 2 coord` > 0) %>% 
+  slice(c(1:7)) %>% 
+  ungroup() %>% 
+  select(-5) %>% 
+  arrange(desc(`Dim 2 coord`)) %>% 
+  kable()
+```
+
+## Interprétation de l'axe 3
+
+```{r}
+fviz_contrib(res.mca, choice = "var", axes = 3)
+```
+
+## Interprétation de l'axe 3
+
+```{r}
+select(x, Mod, starts_with("Dim 3")) %>% 
+  arrange(desc(`Dim 3 contrib`)) %>% 
+  group_by(`Dim 3 coord` > 0) %>% 
+  slice(c(1:7)) %>% 
+  ungroup() %>% 
+  select(-5) %>% 
+  arrange(desc(`Dim 3 coord`)) %>% 
+  kable()
+```
+
+## Diagramme des variables, axes 1 et 2
+
+```{r}
+fviz_mca_var(res.mca, invisible = "quali.sup", repel=TRUE, axes = c(1, 2))
+```
+
+## Diagramme des variables, axes 1 et 3
+
+```{r}
+fviz_mca_var(res.mca, invisible = "quali.sup", repel=TRUE, axes = c(1, 3))
+```
+
+## Diagramme des observations
+
+```{r}
+fviz_mca_biplot(res.mca, axes = c(1, 2), label = "var", invisible = "quali.sup")
+```
+
+## Diagramme des observations
+
+```{r}
+fviz_mca_biplot(res.mca, axes = c(1, 3), label = "var", invisible = "quali.sup")
+```
+
+## Variables supplémentaires
+
+```{r}
+fviz_mca_var(res.mca, repel=TRUE, axes = c(1, 2))
+```
+
+## Variables supplémentaires
+
+```{r}
+fviz_mca_var(res.mca, repel=TRUE, axes = c(1, 3))
+```
+
+## Variables supplémentaires
+
+```{r}
+fviz_mca_ind(res.mca, axes = c(1, 2), habillage = tea$sex, addEllipses = TRUE, label = "")
+```
+
+## Variables supplémentaires
+
+```{r}
+fviz_mca_ind(res.mca, axes = c(1, 3), habillage = tea$sex, addEllipses = TRUE, label = "")
+```
+
+## Construction: conseils pratiques {.allowframebreaks}
+
+La part de la variance dûe à une variable dépend uniquement du nombre de modalités. Par conséquent, si les variables ont un nombde de modalités très différentes, celles qui ont le plus de modalités vont mécaniquement peser plus lourd dans la construction du nuage et donc dans la détermination des axes principaux.
+
+Il est donc recommandé de ne pas mettre de variables avec un très grand nombre de modalités et de limiter les écarts de nombre de modalité entre variables. 
+
+Plus généralement, si l'on fait l'hypothèse qu'il existe des variables latentes structurant le nuage, qui correspondent à des combinaisons de variables observées, il importe d'équilibrer le nombre supposé de modalités de chaque variable latente.
+
+::: Notes
+
+Exemple: on cherche à cartographier l'espace social et l'on pense le faire avec des capitaux culturels et économiques. S'il y a seulement une question sur le diplôme avec trois modalités, mais plusieurs questions sur le capital économique (patrimoine immobilier en trois niveau, patrimoine financier en trois niveaux, revenus en trois niveaux)... le nuage sera nécessairement surdéterminé par le capital économique.
+
+:::
+
+La distance entre deux individus dépend de l'inverse de la fréquence de leurs modalités ; par conséquent, elle s'accroît considérablement à mesure que la fréquence d'une modalité décroît. Les modalités rares produisent des coordonnées extrêmes dans le nuage et le surdétermine. Dans la mesure du possible, il convient de limiter l'usage de ces modalités à moins qu'elles ne soient effectivement très discriminante.
+
+Ces deux contraintes invitent en fait à recoder les questions pour fusionner les modalités trop proches, en particulier lorsqu'elles sont rares. Il ne s'agit pas d'un impératif: les hypothèses de recherche priment. Si une modalité rare est très discriminante et incommensurable avec d'autres (la possession d'un titre de noblesse par exemple), il faut la conserver.
+
+L'ACM ne peut venir qu'après une étape de description des données. On cherchera notamment, en premier lieu: à identifier les non-réponses et les manières d'y remédier ; à identifier les liens entre les variables et à établir des hypothèses sur leurs associations dans une approche multivariée.
+
+Le choix des variables actives et supplémentaires dépend des traditions de recherche et des questions posées. Le plus souvent, on met en variables actives les variables "dépendantes" et en variables supplémentaires les variables "indépendantes". Ainsi, le nuage est structuré par les pratiques étudiées (les consommations culturelles ; les rapports au travail ; etc.) et on teste l'homologie avec un espace social en regardant si les variables indépendantes sont correlées avec les axes principaux.
+
+Cependant, les variables sociodémographiques sont parfois mises en variables actives, notamment lorsque l'enjeu de l'ACM est de cartographier un espace social pluridimensionnel (par exemple les travaux sur les élites [@denord2011]).
+
+Attention à un point durant l'interprétation: la proximité des projections sur un axe principal ne signifie pas que les points soient effectivement proches. En effet, ils ne permettent d'affirmer une proximité que sur cet axe en particulier. Ainsi, l'interprétation porte d'abord sur les oppositions plutôt que sur les proximités.
+
+## Bibliographie {.allowframebreaks}
