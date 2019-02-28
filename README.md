@@ -19,6 +19,19 @@ Cours d'introduction à la sociologie quantitative à destination des doctorants
 8. Produire des graphiques
 9. Écrire des rapports
 
+## Instructions pour installer R et Rstudio (IDE)
+
+Télécharger et installer R: https://cloud.r-project.org/
+
+Télécharger et installer Rstudio: https://www.rstudio.com/products/rstudio/download/#download
+
+Lancer Rstudio. Dans la console (en bas à droite), copiez l'instruction suivante, puis faites entrée et suivez les instructions.
+
+    install.packages(c("tidyverse", "questionr", "FactoMineR", 
+                       "factoextra", "knitr", "stargazer", 
+                       "RColorBrewer")
+
+
 ## Contributions
 
 Certains passages de ce cours sont issus d'enseignements préparés avec Anton Perdoncin ou avec Gabriel Alcaras, et réutilisés avec leur permission.
