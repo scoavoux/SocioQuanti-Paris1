@@ -10,7 +10,7 @@ output:
     highlight: tango
     theme: Copenhagen
 bibliography: /home/vvxf6766/PortKnox/bib/mainlibrary.bib
-lang: fr_FR
+lang: fr-FR
 fontsize: 10pt
 csl: chicago-author-date.csl
 header-includes:
