@@ -29,7 +29,7 @@ Lancer Rstudio. Dans la console (en bas à droite), copiez l'instruction suivant
 
     install.packages(c("tidyverse", "questionr", "FactoMineR", 
                        "factoextra", "knitr", "stargazer", 
-                       "RColorBrewer")
+                       "RColorBrewer"))
 
 
 ## Contributions
