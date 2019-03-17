@@ -14,7 +14,7 @@ Cours d'introduction à la sociologie quantitative à destination des doctorants
 
 ## Niveau 2: Produire des analyses de données quantitatives
 
-6. Introduction à R
+6. [Introduction à R](11_introduction.pdf) et [Import et manipulation de données](12_import_manipulation.pdf)
 7. Analyses statistiques
 8. Produire des graphiques
 9. Écrire des rapports
