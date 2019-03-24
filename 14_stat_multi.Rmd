@@ -1,0 +1,443 @@
+---
+title: "Séance 2: Statistiques multivariées"
+subtitle: "Introduction à la sociologie quantitative, niveau 2"
+author: "Samuel Coavoux"
+output:
+  beamer_presentation:
+    colortheme: beaver
+    highlight: tango
+    latex_engine: xelatex
+    theme: Copenhagen
+    toc: yes
+    keep_tex: true
+    slide_level: 3
+    includes:
+      in_header: header.tex
+lang: fr-FR
+fontsize: 10pt
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r echo=FALSE,warning=FALSE}
+library(knitr)
+#opts_chunk$set(echo=FALSE,warning=FALSE,message=FALSE,fig.path='./Plot/plot-', comment="",fig.width=9,fig.height=7,fig.lp="",results="asis")
+opts_chunk$set(dev = 'pdf')
+options(width=50)
+
+# data
+library(tidyverse)
+load("data/ESS7e02_1.stata/ess7.RData")
+source("data/ess7_recodage.R")
+
+```
+
+# Modèles de regression
+
+## Régression linéaire: lm
+
+### Classe formule
+
+La fonction `lm()` (linear models) permet d'ajuster des modèles de régression linéaire.
+
+Elle prend comme premier argument un objet de classe **formule** ; la variable dépendante est précisée en premier, suivi d'un tilde (~), puis de l'interaction entre variables indépendantes.
+
++ L'interaction est habituellement précisée par `+` (dans le modèle linéaire classique: $Y = \alpha + \beta_1 X_1 + \beta_2 X_2$). 
++ On peut également ajouter, plutôt qu'une variable, l'interaction entre deux variables, en employant `:`. `x ~ a:b` revient à chercher $Y = \alpha + \beta_1 X_1 X_2$ (surtout utile pour les régressions logistiques, lorsque l'on cherche l'interaction entre deux facteurs corrélés). 
++ Enfin, `*` cherche à la fois l'addition et l'interaction. `x ~ a*b` est équivalent à `x ~ a + b + a:b`.
+
+### Classe formule
+
+On peut enfin transformer les variables directement dans une formule. Par exemple `x ~ a + log(b)`. Si l'on souhaite utiliser un terme réservé pour la classe formule comme `+`, il faut l'enclore dans `I()`. Ainsi, `x ~ a + b` prend a et b comme variable indépendante, alors que `x ~ I(a + b)` prend **la somme de a et b** comme variable indépendante.
+
+### lm()
+
+Pour éviter d'avoir à répéter le nom du data.frame pour chaque variable de la formule, on peut employer l'argument data. Ainsi, les deux notations ci-dessous sont équivalentes
+
+```{r, eval=FALSE}
+lm(imueclt ~ happy + income_dec, data=d)
+lm(d$imueclt ~ d$happy + d$income_dec)
+```
+
+L'argument `weights` permet de préciser un vecteur de pondération.
+
+### Explorer un modèle
+
+Par défaut, la méthode print des objets lm (`stats:::print.lm()`) donne assez peu d'informations : seulement les coefficients, et la commande employée pour produire le résultat. `summary.lm()` est beaucoup plus disert. On y obtient:
+
++ un summary des residu;
++ les coefficients avec l'erreur standard, la valeur t et la p-value associée au test de nullité;
++ quelques indicateurs de l'ajustement du modèle: R-squared, F, p-value;
++ le nombre de valeurs manquantes
+
+### Variables
+
+La variable dépendante doit être une variable numérique. lm() accepte des factor, mais c'est particulièrement déconseillée (en gros, la variable factor devrait être transformée en numérique, de sorte que votre variable dépendante sera discrète et prendra comme valeur 1 à k où k est le nombre de modalités).
+
+Les variables indépendantes peuvent être des factors. Dans ce cas, la première modalité (le premier level) sera considéré comme la modalité de référence, et les coefficients des autres modalités sera calculé. Pour changer de modalité de référence rapidement (c'est à dire pour passer un level en premier level d'un factor sans avoir à réécrire `factor(x, levels=c(liste des levels))`), on peut employer `relevel()`
+
+```{r, eval=FALSE}
+d$gndr <- relevel(d$gndr, ref = "Female")
+```
+
+
+### Explorer un modèle: print()
+
+```{r}
+ll <- lm(imueclt ~ happy + income_dec, data=d)
+print(ll)
+```
+
+### Explorer un modèle: summary()
+
+
+```{r, size="footnotesize"}
+summary(ll)
+```
+
+### Valeurs manquantes
+
+**Attention!** Par défaut, lm supprime les lignes de la base de données contenant une valeur manquantes. On peut facilement se retrouver, dans une enquête par questionnaire, à faire des régression sur quelques pourcents de l'échantillon si l'on ajoute trop de variables sans y prendre garde. Il convient donc de:
+
++ limiter le nombre de variables;
++ recoder en amont les NA autant que possible.
+
+### Explorer un modèle: plot()
+
+La fonction de base pour représenter graphiquement des modèles est la méthode `plot.lm()`. Par défaut, elle produit 4 graphiques (on peut en choisir un seul avec `which`:
+
++ un scatterplot des résidu par valeur prédite de $Y$ (1);
++ un diagramme Quantile-Quantile des résidu studentisé (2);
++ un scatterplot de la racine des résidu studentisé par valeur prédite de $Y$ (3);
++ un scatterplot des résidu studentisé pour les outliers (5).
+
+Ces graphs devraient permettre de faire un premier diagnostic sur l'ajustement du modèle : vérifier la normalité des résidus et l'homeoscédasticité du modèle.
+
+### Explorer un modèle: plot()
+
+```{r, fig.height=6}
+plot(ll, which = 1)
+```
+
+### Explorer un modèle: plot()
+
+```{r, fig.height=6}
+plot(ll, which = 2)
+```
+
+### Explorer un modèle: plot()
+
+```{r, fig.height=6}
+plot(ll, which = 3)
+```
+
+### Explorer un modèle: plot()
+
+```{r, fig.height=6}
+plot(ll, which = 5)
+```
+
+### Explorer un modèle: résultats de lm()
+
+```{r}
+names(ll)
+```
+
+### Accéder aux coefficients
+
+```{r}
+ll$coefficients
+```
+
+### Accéder aux résidus
+
+```{r}
+plot(density(ll$residuals))
+```
+
+### Accéder aux résidus
+
+```{r}
+plot(ll$fitted.values, ll$residuals)
+```
+
+## Régression logistique
+
+### Modèle linéaire généralisé: glm()
+
+La fonction `glm()` (Generalized Linear Model) permet de réaliser la plupart des régressions non-linéaires. Comme pour `lm()`, on donne le lien entre les variables dans une formule (dans laquelle on peut omettre le data.frame si l'on a précisé l'argument `data`), et on peut préciser un vecteur de pondération avec `weights`.
+
+Par défaut, `glm()` produit une régression linéaire. Pour changer cela, on doit préciser l'argument `family` (préciser la fonction de répartition de l'erreur ainsi que le lien entre les termes du modèle). Par défaut, la famille `binomial` a pour argument de lien `link = "logit"`.
+
+```{r, eval = FALSE}
+glm(Y ~ X1 + X2, data=mydata, family = "binomial")
+# ce qui revient à:
+glm(Y ~ X1 + X2, data=mydata, family = binomial(link = 
+                                                  "logit"))
+```
+
+### Modèle linéaire généralisé: glm()
+
+On ne voit dans ce cours que le modèle logit ; il suffit pour d'autres modèles de changer les arguments `family` et `link`. Voir l'aide de `family` pour cela.
+
+```{r, eval = FALSE}
+?family
+```
+
+Par exemple, pour un modèle probit:
+
+```{r, eval = FALSE}
+glm(Y ~ X1 + X2, data=mydata, family = binomial(link = 
+                                                  "probit"))
+
+```
+
+### Régression logistique
+
+Pour une régression logistique, la variable dépendante doit être dichotomique. Elle peut être au format factor (alors, premier level = 0 et second level = 1 ; utiliser `relevel` pour le changer) ou numeric (0 ou 1). Si vous avez plus d'un niveau, **il n'y aura pas de message d'erreur** mais les coefficients n'auront pas grand sens.
+
+Pour les modèles logit multinomiaux, cf. le package `mlogit`
+
+### Régression logistique
+
+```{r}
+titanic <- read_csv("data/titanic.csv")
+
+titanic <- mutate(titanic, Children = ifelse(Age < 18, 
+                                             "Enfant", 
+                                             "Adulte"))
+```
+
+
+### Quels déterminants de la survie?
+
+```{r}
+library(questionr)
+lprop(table(titanic$Children, titanic$Survived))
+```
+
+### Quels déterminants de la survie?
+
+```{r}
+lprop(table(titanic$Sex, titanic$Survived))
+```
+
+### Quels déterminants de la survie?
+
+```{r}
+lprop(table(titanic$PClass, titanic$Survived))
+```
+
+### Régression logistique
+
+```{r}
+gt <- glm(Survived ~ Children + Sex + PClass, 
+          data = titanic, 
+          family = "binomial")
+```
+
+### Régression logistique: exploration
+
+Comme pour lm, `print` donne peu d'information, et `summary` en donne beaucoup. `plot.glm()` produit les mêmes quatre graphiques que `plot.lm()`
+
+```{r, size="footnotesize"}
+summary(gt)
+```
+
+### Régression logistique: odds ratio
+
+Pour calculer les odds ratio, on prend l'exponentiel du coefficient:
+
+```{r}
+exp(gt$coefficients)
+# Ou alors:
+# exp(coef(gt))
+```
+
+### Régression logistique: odds ratio
+
+La fonction `odds.ratio` de questionr permet de le faire en ajoutant un intervalle de confiance (que l'on peut spécifier avec `level`)
+
+```{r}
+odds.ratio(gt, level=.99)
+```
+
+# Analyse géométrique de données
+
+### Packages
+
+Il existe de nombreux packages pour réaliser des analyses géométriques de données. On utilisera `FactoMineR`, développé à Agrocampus Rennes, et `factoextra` pour la visualisation des données.
+
+Vous pouvez également employer:
+
++ en base-R, `stats::factanal()` (analyse des correspondances) ou `stats::princomp()` (analyse en composantes principales)
++ Autre packages: `ca`, `ade4` (package pour les sciences environmentales développé à Lyon 1)
+
+## ACP
+
+### Données
+
+```{r}
+library(FactoMineR)
+d_acp <- select(d, 
+                qfimedu, qfimlng, qfimchr, 
+                qfimwht, qfimwsk, qfimcmt,
+                eduyrs, # Illus. quanti
+                gndr) # Illus quali
+
+```
+
+### ACP
+
+```{r}
+names(d_acp)
+qfi_acp <- PCA(d_acp, quanti.sup = 7, quali.sup = 8,
+               graph = FALSE)
+```
+
+### Eigenvalues
+
+```{r, fig.height=6}
+library(factoextra)
+fviz_eig(qfi_acp)
+```
+
+### Extraire les valeurs des variables
+
+```{r}
+## Coordonnées et contribution de l'axe 1
+cbind(qfi_acp$var$coord[, 1], 
+      qfi_acp$var$contrib[, 1])
+```
+
+### Extraire les valeurs des variables
+
+```{r}
+## Coordonnées et contribution de l'axe 2
+cbind(qfi_acp$var$coord[, 2], 
+      qfi_acp$var$contrib[, 2])
+```
+
+### Graphiques
+
+L'intérêt de FactoMineR est d'avoir de bonnes méthodes de graph, avec beaucoup d'options. `plot()` renvoie à `plot.PCA()` pour un objet de classe PCA.
+
+Par défaut, si on lance `PCA(d_acp, graph = TRUE)`, deux graphiques sont représentés : le nuage des individus, et le diagramme des variables, pour les deux premiers axes. C'est utile pour l'usage interactif ; dans les scripts, mieux vaut laisser `graph=FALSE` et produire ensuite explicitement les graphiques.
+
+plot.PCA prend comme arguments:
+
++ x = un objet de classe PCA
++ axes = un vecteur numérique de taille 2 avec l'index des axes à représenter. Par défaut `c(1, 2)`: les deux premiers axes.
++ choix = "ind" pour les individus, "var" pour les variables.
+
+### Variables, axes 1 et 2
+
+```{r, fig.height=6}
+fviz_pca_var(qfi_acp, axes = c(1, 2))
+```
+
+### Variables, axes 1 et 3
+
+```{r, fig.height=6}
+fviz_pca_var(qfi_acp, axes = c(1, 3))
+```
+
+### Individus, axes 1 et 2
+
+```{r, fig.height=6}
+fviz_pca_ind(qfi_acp, axes = c(1, 2), geom.ind = "point")
+```
+
+### Individus, axes 1 et 3
+
+```{r, fig.height=6}
+fviz_pca_ind(qfi_acp, axes = c(1, 3), geom.ind = "point")
+```
+
+### Valeurs manquantes
+
+Par défaut, les fonctions de `FactoMineR` ignorent les valeurs manquantes (l'analyse est faite sur le sous-ensemble des individus pour lesquels toutes les variables sont renseignés).
+
+`missMDA` est un package développé par les mêmes concepteurs que FactoMineR, qui inclut différentes méthodes pour imputer les valeurs manquantes dans un jeu de données, à partir d'analyses géométriques. Le package s'utilise en deux étapes: on commence par estimer le nombre de dimensions à prendre en compte avec `estim_ncpPCA()` (remplacer PCA par MCA en cas d'ACM) ; puis on impute les valeurs manquantes avec `imputePCA()` (resp. `imputeMCA`). Attention, il ne faut le faire que pour les variables actives.
+
+### Valeurs manquantes
+
+```{r missMDA, eval=FALSE}
+library(missMDA)
+n <- estim_ncpPCA(select(d_acp, qfimedu:qfimcmt))
+complete_obs <- imputePCA(select(d_acp, qfimedu:qfimcmt), ncp = n)
+PCA(complete_obs)
+```
+
+### Généralisation
+
+Les autres techniques, AFC (`CA()`) et ACM (`MCA()`), fonctionnent exactement de la même manière que PCA : 
+
++ réduire la base aux seules variables utiles ;
++ imputer éventuellement les valeurs manquantes ;
++ produire l'analyse avec la fonction correspondante et `graph = FALSE` ;
++ graph des eigenvalues ; 
++ analyse des coordonnées et contributions (`$var`, `$ind` pour PCA et MCA ; `$row` et `$col` pour CA) ;
++ graphiques des axes retenus, pour les individus et pour les variables. 
+
+## ACM
+
+### ACM
+
+```{r}
+d_acm <- select(d, trstprl, trstlgl, trstplc, 
+               trstplt, trstprt, trstep, 
+               trstun, gndr, cntry)
+d_acm <- na.omit(d_acm)
+trust_acm <- MCA(d_acm, quali.sup = 8:9, graph = FALSE)
+```
+
+### Eigenvalues
+
+```{r, fig.height = 6}
+fviz_eig(trust_acm)
+```
+
+### Contribution et coordonnées
+
+```{r}
+cbind(trust_acm$var$coord[, 1],
+      trust_acm$var$contrib[, 1])
+```
+
+### Contribution et coordonnées
+
+```{r}
+cbind(trust_acm$var$coord[, 2],
+      trust_acm$var$contrib[, 2])
+```
+
+### Contributions axe 1
+
+```{r}
+fviz_contrib(trust_acm, choice = "var", axes = 1)
+```
+
+### Contributions axe 2
+
+```{r}
+fviz_contrib(trust_acm, choice = "var", axes = 2)
+```
+
+### Diagramme des modalités
+
+```{r, fig.height = 6}
+fviz_mca_var(trust_acm, repel=TRUE)
+```
+
+### Nuage des individus
+
+```{r, fig.height = 6}
+fviz_mca_ind(trust_acm, geom.ind = "point")
+```
+
+### Nuage total
+
+```{r, fig.height = 6}
+fviz_mca(trust_acm, geom.ind = "point", repel = TRUE)
+```
