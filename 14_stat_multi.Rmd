@@ -19,7 +19,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r echo=FALSE,warning=FALSE}
+```{r include=FALSE}
 library(knitr)
 #opts_chunk$set(echo=FALSE,warning=FALSE,message=FALSE,fig.path='./Plot/plot-', comment="",fig.width=9,fig.height=7,fig.lp="",results="asis")
 opts_chunk$set(dev = 'pdf')
@@ -430,6 +430,18 @@ fviz_contrib(trust_acm, choice = "var", axes = 2)
 fviz_mca_var(trust_acm, repel=TRUE)
 ```
 
+### Sélection de modalités: 10 plus fortes contributions
+
+```{r, fig.height = 6}
+fviz_mca_var(trust_acm, repel=TRUE, select.var = list(contrib = 10))
+```
+
+### Sélection de modalités: 10 meilleurs cos2
+
+```{r, fig.height = 6}
+fviz_mca_var(trust_acm, repel=TRUE, select.var = list(cos2 = 10))
+```
+
 ### Nuage des individus
 
 ```{r, fig.height = 6}
@@ -441,3 +453,11 @@ fviz_mca_ind(trust_acm, geom.ind = "point")
 ```{r, fig.height = 6}
 fviz_mca(trust_acm, geom.ind = "point", repel = TRUE)
 ```
+
+### Explor
+
+```{r, eval=FALSE}
+library(explor)
+explor(trust_acm)
+```
+
