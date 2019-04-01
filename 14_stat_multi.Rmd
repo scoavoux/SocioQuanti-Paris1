@@ -456,8 +456,19 @@ fviz_mca(trust_acm, geom.ind = "point", repel = TRUE)
 
 ### Explor
 
+Développé par Julien Barnier. Un package qui permet de produire les graphiques de façon interactive, avec ggplot en backend.
+
 ```{r, eval=FALSE}
 library(explor)
 explor(trust_acm)
+```
+
+### FactoInvestigate
+
+Développé par François Husson (FactoMineR). Un package qui permet de réaliser automatiquement les interprétations classiques.
+
+```{r, eval=FALSE}
+library(FactoInvestigate)
+Investigate(trust_acm)
 ```
 
