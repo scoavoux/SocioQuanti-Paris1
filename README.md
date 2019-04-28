@@ -17,7 +17,7 @@ Cours d'introduction à la sociologie quantitative à destination des doctorants
 6. [Introduction à R](11_introduction.pdf) et [Import et manipulation de données](12_import_manipulation.pdf)
 7. Analyses statistiques [fondamentales](13_stats_fondam.pdf) et [multivariées](14_stat_multi.pdf)
 8. [Produire des graphiques](15_graphiques.pdf)
-9. Écrire des rapports
+9. [Écrire des rapports](16_reproductibilite.pdf)
 
 ## Instructions pour installer R et Rstudio (IDE)
 
